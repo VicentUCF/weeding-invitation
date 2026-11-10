@@ -4,15 +4,18 @@ import { t, type Locale } from '../../lib/i18n';
 interface Props { locale?: Locale }
 const locale = Astro.props.locale ?? 'es';
 const c = t(locale);
+const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ca-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 ---
 <section class="opening" data-opening aria-label={c.openLabel}>
   <div class="opening__frame" aria-hidden="true"></div>
-  <img class="opening__floral opening__floral--left" src="/images/floral-corner.webp" alt="" width="860" height="900" />
-  <img class="opening__floral opening__floral--right" src="/images/floral-corner.webp" alt="" width="860" height="900" />
+  <img class="opening__floral opening__floral--left" src="/images/olive-corner.webp" alt="" width="1200" height="800" />
+  <img class="opening__floral opening__floral--right" src="/images/olive-corner.webp" alt="" width="1200" height="800" />
   <img class="opening__petals" src="/images/petal-trail.webp" alt="" width="1000" height="667" />
   <img class="opening__petals opening__petals--approach" src="/images/petal-trail.webp" alt="" width="1000" height="667" />
   <div class="opening__content">
     <p class="opening__eyebrow">{c.special}</p>
+    <p class="opening__names">{wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}</p>
+    <p class="opening__date"><time datetime={wedding.date}>{dateLong}</time></p>
     <div class="envelope" data-envelope>
       <div class="envelope__glow" aria-hidden="true"></div>
       <div class="envelope__back" aria-hidden="true"></div>
@@ -24,7 +27,7 @@ const c = t(locale);
       <div class="envelope__bottom" aria-hidden="true"></div>
       <div class="envelope__lid" data-flap>
         <div class="envelope__flap" aria-hidden="true"></div>
-        <button class="envelope__seal" data-open type="button" aria-label={`${c.open} ${wedding.couple.join(locale === 'es' ? ' y ' : ' & ')}`}>
+        <button class="envelope__seal" data-open type="button" aria-label={`${c.open} ${wedding.couple.join(' i ')}`}>
           <img src="/images/seal.webp" alt="" width="320" height="312" fetchpriority="high" />
         </button>
       </div>

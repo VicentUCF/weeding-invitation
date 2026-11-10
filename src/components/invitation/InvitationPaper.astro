@@ -3,22 +3,22 @@ import FloralMark from './FloralMark.astro';
 import { wedding } from '../../config/wedding';
 import type { InvitationRecipient } from '../../config/recipients';
 import { t, type Locale } from '../../lib/i18n';
-interface Props { recipient?: InvitationRecipient; preview?: boolean; compact?: boolean; greeting?: string; message?: string; locale?: Locale }
-const { recipient, preview = false, compact = false, locale = 'es' } = Astro.props;
+interface Props { recipient?: InvitationRecipient; compact?: boolean; greeting?: string; message?: string; locale?: Locale }
+const { recipient, compact = false, locale = 'es' } = Astro.props;
 const c = t(locale);
 const greeting = Astro.props.greeting ?? c.weMarry;
 const message = Astro.props.message ?? c.intro;
-const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ca-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 ---
 <div class:list={['hero__paper', { 'hero__paper--mini': compact }]} data-paper={compact ? 'mini' : 'full'}>
-  <img class="hero__ornament hero__ornament--left" src="/images/floral-corner.webp" alt="" width="860" height="900" />
-  <img class="hero__ornament hero__ornament--right" src="/images/floral-corner.webp" alt="" width="860" height="900" />
+  <img class="hero__ornament hero__ornament--left" src="/images/olive-corner.webp" alt="" width="1200" height="800" />
+  <img class="hero__ornament hero__ornament--right" src="/images/olive-corner.webp" alt="" width="1200" height="800" />
   <div class="hero__inner">
-    <p class="hero__topline">{c.weddingInvitation}{preview && ` · ${c.preview}`}</p>
+    <p class="hero__topline">{c.weddingInvitation}</p>
     {recipient && <p class="hero__recipient">{c.for} <strong>{recipient.addressee}</strong></p>}
     <FloralMark class="hero__floral" />
     <p class="eyebrow hero__eyebrow" data-reveal>{greeting}</p>
-    <h1 id={compact ? undefined : 'hero-title'} data-reveal><span class="hero__name">{wedding.couple[0]}</span><span class="hero__amp">&</span><span class="hero__name">{wedding.couple[1]}</span></h1>
+    <h1 id={compact ? undefined : 'hero-title'} data-reveal><span class="hero__name">{wedding.couple[0]}</span><span class="hero__amp">{locale === 'uk' ? 'та' : 'i'}</span><span class="hero__name">{wedding.couple[1]}</span></h1>
     <p class="hero__date" data-reveal><time datetime={wedding.date}>{dateLong}</time></p>
   </div>
   <div class="hero__visual">
@@ -29,6 +29,9 @@ const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale
   <div class="hero__closing">
     <div class="divider" aria-hidden="true"><span>✳</span></div>
     <p class="hero__message" data-reveal>{recipient?.personalNote ?? message}</p>
-    <a class="button button--primary" href="#detalles">{c.discover} <span aria-hidden="true">↓</span></a>
+    <div class="hero__actions">
+      <a class="button button--primary" href="#camino">{c.discover} <span aria-hidden="true">↓</span></a>
+      {recipient && <a class="hero__text-link" href="#confirmar">{c.confirm}</a>}
+    </div>
   </div>
 </div>

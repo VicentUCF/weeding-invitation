@@ -1,0 +1,79 @@
+---
+import { t, type Locale } from '../../lib/i18n';
+import { wedding } from '../../config/wedding';
+interface Props { locale?: Locale }
+const locale = Astro.props.locale ?? 'es';
+const c = t(locale);
+const road = 'M250 0 C250 120 100 125 110 260 S390 380 375 510 S125 650 125 760 S270 870 250 1000 C240 1065 330 1070 325 1130 S250 1180 250 1220';
+---
+<section id="camino" class="section journey" aria-labelledby="journey-title" data-journey>
+  <div class="journey__sticky">
+    <div class="journey__intro" data-scroll-reveal>
+      <p class="eyebrow">{c.journeyEyebrow}</p>
+      <h2 id="journey-title">{c.journeyTitle}</h2>
+      <p>{c.journeyIntro}</p>
+    </div>
+
+    <div class="journey__scene" role="group" aria-label={c.journeyArtAlt}>
+      <div class="journey__start" data-journey-step>
+        <div class="journey__tower-art"><img src="/images/galim-facade-sheet.webp" alt="" width="1076" height="717" loading="lazy" decoding="async" /></div>
+        <p class="journey__place"><span class="journey__place-mark" aria-hidden="true">✦</span>{c.journeyStart}</p>
+      </div>
+
+      <div class="journey__road-scene" data-journey-step>
+        <svg class="journey__terrain" viewBox="0 0 500 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <defs>
+            <radialGradient id="journey-olive-field"><stop stop-color="#aab58b" stop-opacity=".27" /><stop offset=".58" stop-color="#d4c9a4" stop-opacity=".16" /><stop offset="1" stop-color="#d4c9a4" stop-opacity="0" /></radialGradient>
+            <radialGradient id="journey-cypress-field"><stop stop-color="#b6bb91" stop-opacity=".24" /><stop offset=".64" stop-color="#d5c79e" stop-opacity=".13" /><stop offset="1" stop-color="#d5c79e" stop-opacity="0" /></radialGradient>
+          </defs>
+          <ellipse cx="360" cy="338" rx="185" ry="135" fill="url(#journey-olive-field)" />
+          <ellipse cx="370" cy="790" rx="190" ry="155" fill="url(#journey-cypress-field)" />
+          <g class="journey__terraces">
+            <path d="M255 290 C325 255 420 255 500 300" />
+            <path d="M250 322 C325 285 425 290 500 335" />
+            <path d="M255 355 C335 325 430 328 500 365" />
+            <path d="M235 728 C320 690 425 705 500 745" />
+            <path d="M225 765 C310 733 423 747 500 780" />
+            <path d="M225 802 C315 775 420 786 500 818" />
+          </g>
+          <g class="journey__stone-walls">
+            <path d="M285 400 C345 377 425 378 480 400" />
+            <path d="M245 858 C320 836 420 844 490 870" />
+          </g>
+        </svg>
+        <svg class="journey__roadline" viewBox="0 0 500 1220" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <defs>
+            <mask id="journey-road-reveal" maskUnits="userSpaceOnUse" x="0" y="-50" width="500" height="1320">
+              <circle class="journey__road-start-mask" cx="250" cy="0" r="36" fill="#fff" data-route-start-mask />
+              <circle class="journey__road-end-mask" cx="250" cy="1220" r="36" fill="#fff" data-route-end-mask />
+              <path class="journey__road-mask" d={road} data-route-mask />
+            </mask>
+          </defs>
+          <g class="journey__roadline-draw" mask="url(#journey-road-reveal)">
+            <path class="journey__road-shoulder" d={road} />
+            <path class="journey__road-surface" d={road} data-route-path />
+            <path class="journey__road-centre" d={road} />
+          </g>
+        </svg>
+        <div class="journey__car-art" data-journey-car aria-hidden="true"><img src="/images/car-top-view.webp" alt="" width="512" height="768" loading="lazy" decoding="async" /></div>
+        <span class="journey__road-sign">CV-60</span>
+        <span class="journey__road-direction">{c.journeyDirection} <span aria-hidden="true">↘</span></span>
+        <div class="journey__compass-art" aria-hidden="true"><img src="/images/galim-aerial-sheet.webp" alt="" width="1383" height="922" loading="lazy" decoding="async" /></div>
+        <img class="journey__olive-grove" src="/images/roadside-olives.webp" alt="" width="768" height="512" loading="lazy" decoding="async" aria-hidden="true" data-scroll-reveal />
+        <img class="journey__cypress-grove" src="/images/roadside-cypresses.webp" alt="" width="768" height="512" loading="lazy" decoding="async" aria-hidden="true" data-scroll-reveal />
+      </div>
+
+      <div class="journey__destination" data-journey-step>
+        <svg class="journey__arrival-pin" viewBox="0 0 32 40" aria-hidden="true" focusable="false"><path d="M16 38C12 32 3 23 3 16a13 13 0 1 1 26 0c0 7-9 16-13 22Z" /><circle cx="16" cy="16" r="5" /></svg>
+        <p class="journey__place">{c.journeyEnd}</p>
+      </div>
+      <div class="journey__last-mile" data-last-mile aria-hidden="true"></div>
+      <div class="journey__venue-stop">
+        <div class="journey__venue-preview" data-journey-preview aria-hidden="true">
+          <img src="/images/galim-aerial-sheet.webp" alt="" width="1383" height="922" loading="lazy" decoding="async" />
+        </div>
+        <p class="journey__venue-name" data-journey-name>{wedding.ceremony.venue}</p>
+      </div>
+    </div>
+  </div>
+</section>

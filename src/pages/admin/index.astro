@@ -10,7 +10,7 @@ export const prerender = false;
 if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
 let error = '';
 if (Astro.request.method === 'POST') {
-  if (!sameOrigin(Astro)) return new Response('Origen no válido', { status: 403 });
+  if (!sameOrigin(Astro)) return new Response('No s’ha pogut validar la sol·licitud', { status: 403 });
   const data = await Astro.request.formData();
   try {
     const action = formField(data, 'action');
@@ -20,27 +20,27 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect(`/admin/invitations/${id}?created=1`, 303);
     }
     if (action === 'createGroup') {
-      await createGroup(requiredField(formField(data, 'name'), 160, 'Nombre del grupo'), parseLocale(formField(data, 'locale')));
+      await createGroup(requiredField(formField(data, 'name'), 160, 'Nom del grup'), parseLocale(formField(data, 'locale')));
       return Astro.redirect('/admin/?groupSaved=1#grupos', 303);
     }
     if (action === 'editGroup') {
-      await updateGroup(formField(data, 'groupId'), requiredField(formField(data, 'name'), 160, 'Nombre del grupo'), parseLocale(formField(data, 'locale')));
+      await updateGroup(formField(data, 'groupId'), requiredField(formField(data, 'name'), 160, 'Nom del grup'), parseLocale(formField(data, 'locale')));
       return Astro.redirect('/admin/?groupSaved=1#grupos', 303);
     }
     if (action === 'settings') {
       const deadline = formField(data, 'deadline');
-      if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) throw new Error('La fecha límite no es válida.');
+      if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) throw new Error('La data límit no és vàlida.');
       await saveSettings({ rsvp_enabled: formField(data, 'enabled') === 'yes', rsvp_deadline: deadline || null });
       return Astro.redirect('/admin/?saved=1', 303);
     }
-    throw new Error('Acción no válida.');
-  } catch (cause) { error = cause instanceof Error ? cause.message : 'No se pudieron guardar los cambios.'; }
+    throw new Error('Acció no vàlida.');
+  } catch (cause) { error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.'; }
 }
 let invitations = [] as Awaited<ReturnType<typeof listInvitations>>;
 let groups = [] as Awaited<ReturnType<typeof listGroups>>;
 let config: Awaited<ReturnType<typeof settings>> = { rsvp_enabled: true, rsvp_deadline: null };
 try { [invitations, groups, config] = await Promise.all([listInvitations(), listGroups(), settings()]); }
-catch { error = 'No se puede conectar con la base de datos. Revisa la configuración y el esquema.'; }
+catch { error = 'No podem carregar les dades. Revisa la connexió amb la base de dades.'; }
 const activeInvitations = invitations.filter((invitation) => !invitation.revoked_at);
 const guests = activeInvitations.flatMap((invitation) => invitation.guests);
 const count = (response: string) => guests.filter((guest) => guest.response === response).length;
@@ -53,63 +53,63 @@ const filtered = invitations.filter((invitation) => {
   return matchesText && matchesStatus && (groupFilter === 'all' || (groupFilter === 'none' ? !invitation.group_id : invitation.group_id === groupFilter));
 });
 ---
-<BaseLayout title="Panel de invitaciones · Boda" privatePage>
+<BaseLayout title="Panell d’invitacions · Boda" privatePage>
   <div class="admin-shell">
     <header class="admin-header">
-      <div><p class="eyebrow">Espacio de los novios</p><h1>Invitaciones y respuestas</h1></div>
-      <form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Cerrar sesión</button></form>
+      <div><p class="eyebrow">Espai dels nuvis</p><h1>Invitacions i respostes</h1></div>
+      <form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form>
     </header>
-    <nav class="admin-nav" aria-label="Secciones del panel"><a href="#resumen">Resumen</a><a href="#invitaciones">Invitaciones</a><a href="#grupos">Grupos e idiomas</a><a href="#nueva">Nueva invitación</a><a href="#ajustes">Ajustes</a><a href="/admin/export.csv">Exportar CSV</a></nav>
+    <nav class="admin-nav" aria-label="Seccions del panell"><a href="#resumen">Resum</a><a href="#invitaciones">Invitacions</a><a href="#grupos">Grups i idiomes</a><a href="#nueva">Nova invitació</a><a href="#ajustes">Configuració</a><a href="/admin/export.csv">Exporta el CSV</a></nav>
     {error && <p class="form-message form-message--error" role="alert">{error}</p>}
-    {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Ajustes guardados.</p>}
-    {Astro.url.searchParams.has('groupSaved') && <p class="form-message form-message--success" role="status">Grupo e idioma guardados.</p>}
-    {Astro.url.searchParams.has('deleted') && <p class="form-message form-message--success" role="status">Invitación y respuestas eliminadas.</p>}
+    {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Configuració guardada.</p>}
+    {Astro.url.searchParams.has('groupSaved') && <p class="form-message form-message--success" role="status">Grup i idioma guardats.</p>}
+    {Astro.url.searchParams.has('deleted') && <p class="form-message form-message--success" role="status">Invitació i respostes eliminades.</p>}
     <section id="resumen" class="admin-section" aria-labelledby="resumen-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Resumen</p><h2 id="resumen-title">Así van las respuestas</h2></div><p>Datos actualizados al abrir esta página.</p></div>
+      <div class="admin-section__heading"><div><p class="eyebrow">Resum</p><h2 id="resumen-title">Estat de les respostes</h2></div><p>Dades actualitzades en obrir esta pàgina.</p></div>
       <div class="admin-stats">
-        <div><strong>{activeInvitations.length}</strong><span>Invitaciones activas</span></div>
-        <div><strong>{guests.length}</strong><span>Personas invitadas</span></div>
-        <div><strong>{count('yes')}</strong><span>Asisten</span></div>
-        <div><strong>{count('no')}</strong><span>No asisten</span></div>
-        <div><strong>{count('pending')}</strong><span>Pendientes</span></div>
-        <div><strong>{guests.filter((guest) => guest.response === 'yes' && guest.allergies).length}</strong><span>Con alergias</span></div>
+        <div><strong>{activeInvitations.length}</strong><span>Invitacions actives</span></div>
+        <div><strong>{guests.length}</strong><span>Persones convidades</span></div>
+        <div><strong>{count('yes')}</strong><span>Assistiran</span></div>
+        <div><strong>{count('no')}</strong><span>No assistiran</span></div>
+        <div><strong>{count('pending')}</strong><span>Pendents</span></div>
+        <div><strong>{guests.filter((guest) => guest.response === 'yes' && guest.allergies).length}</strong><span>Amb al·lèrgies</span></div>
       </div>
     </section>
     <section id="invitaciones" class="admin-section" aria-labelledby="invitaciones-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Seguimiento</p><h2 id="invitaciones-title">Invitaciones</h2></div><a class="button" href="/admin/export.csv">Descargar lista CSV</a></div>
+      <div class="admin-section__heading"><div><p class="eyebrow">Seguiment</p><h2 id="invitaciones-title">Invitacions</h2></div><a class="button" href="/admin/export.csv">Baixa la llista en CSV</a></div>
       <form method="get" class="admin-filters" role="search">
-        <label for="q">Buscar por nombre o correo</label><input id="q" name="q" type="search" value={Astro.url.searchParams.get('q') ?? ''} />
-        <label for="status">Estado</label><select id="status" name="status"><option value="all" selected={status === 'all'}>Todos</option><option value="pending" selected={status === 'pending'}>Con pendientes</option><option value="yes" selected={status === 'yes'}>Con asistentes</option><option value="no" selected={status === 'no'}>Con ausencias</option><option value="unsent" selected={status === 'unsent'}>Sin enviar</option><option value="revoked" selected={status === 'revoked'}>Revocadas</option></select>
-        <label for="group-filter">Grupo</label><select id="group-filter" name="group"><option value="all" selected={groupFilter === 'all'}>Todos</option><option value="none" selected={groupFilter === 'none'}>Sin grupo</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select>
-        <button class="button" type="submit">Filtrar</button>
+        <label for="q">Busca per nom o correu</label><input id="q" name="q" type="search" value={Astro.url.searchParams.get('q') ?? ''} />
+        <label for="status">Estat</label><select id="status" name="status"><option value="all" selected={status === 'all'}>Tots</option><option value="pending" selected={status === 'pending'}>Amb respostes pendents</option><option value="yes" selected={status === 'yes'}>Amb assistents</option><option value="no" selected={status === 'no'}>Amb absències</option><option value="unsent" selected={status === 'unsent'}>Sense enviar</option><option value="revoked" selected={status === 'revoked'}>Revocades</option></select>
+        <label for="group-filter">Grup</label><select id="group-filter" name="group"><option value="all" selected={groupFilter === 'all'}>Tots</option><option value="none" selected={groupFilter === 'none'}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select>
+        <button class="button" type="submit">Filtra</button>
       </form>
       {filtered.length ? <div class="admin-invitation-list">
         {filtered.map((invitation) => <article class="admin-invitation">
-          <div><p class="admin-invitation__meta">{invitation.revoked_at ? 'Revocada' : invitation.sent_at ? 'Marcada como enviada' : 'Pendiente de envío'} · {groups.find((group) => group.id === invitation.group_id)?.name ?? 'Sin grupo'} · {localeName[invitation.locale]}</p><h3>{invitation.addressee}</h3><p>{invitation.guests.map((guest) => guest.name).join(', ')}</p>{invitation.email && <p>{invitation.email}</p>}</div>
-          <div class="admin-invitation__side"><span>{invitation.guests.filter((guest) => guest.response === 'yes').length} sí · {invitation.guests.filter((guest) => guest.response === 'no').length} no · {invitation.guests.filter((guest) => guest.response === 'pending').length} pendientes</span><a class="button" href={`/admin/invitations/${invitation.id}`}>Gestionar</a></div>
+          <div><p class="admin-invitation__meta">{invitation.revoked_at ? 'Revocada' : invitation.sent_at ? 'Marcada com a enviada' : 'Pendent d’enviament'} · {groups.find((group) => group.id === invitation.group_id)?.name ?? 'Sense grup'} · {localeName[invitation.locale]}</p><h3>{invitation.addressee}</h3><p>{invitation.guests.map((guest) => guest.name).join(', ')}</p>{invitation.email && <p>{invitation.email}</p>}</div>
+          <div class="admin-invitation__side"><span>{invitation.guests.filter((guest) => guest.response === 'yes').length} sí · {invitation.guests.filter((guest) => guest.response === 'no').length} no · {invitation.guests.filter((guest) => guest.response === 'pending').length} pendents</span><a class="button" href={`/admin/invitations/${invitation.id}`}>Gestiona</a></div>
         </article>)}
-      </div> : <p class="admin-empty">{invitations.length ? 'No hay invitaciones que coincidan con este filtro.' : 'Todavía no hay invitaciones. Crea la primera abajo.'}</p>}
+      </div> : <p class="admin-empty">{invitations.length ? 'No hi ha invitacions que coincidisquen amb este filtre.' : 'Encara no hi ha invitacions. Crea’n una més avall.'}</p>}
     </section>
     <section id="grupos" class="admin-section" aria-labelledby="grupos-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Organizar</p><h2 id="grupos-title">Grupos e idiomas</h2></div><p>Las tarjetas de un grupo usan su idioma. Al cambiarlo, se actualizan sus enlaces.</p></div>
-      {groups.map((group) => <form method="post" class="admin-form"><input type="hidden" name="action" value="editGroup" /><input type="hidden" name="groupId" value={group.id} /><label for={`group-name-${group.id}`}>Nombre del grupo</label><input id={`group-name-${group.id}`} name="name" value={group.name} maxlength="160" required /><label for={`group-locale-${group.id}`}>Idioma del grupo</label><select id={`group-locale-${group.id}`} name="locale"><option value="es" selected={group.locale === 'es'}>Español</option><option value="uk" selected={group.locale === 'uk'}>Українська</option></select><button class="button" type="submit">Guardar grupo</button></form>)}
-      <form method="post" class="admin-form"><input type="hidden" name="action" value="createGroup" /><label for="new-group-name">Nuevo grupo</label><input id="new-group-name" name="name" maxlength="160" required placeholder="Ej.: Familia de Ucrania" /><label for="new-group-locale">Idioma predeterminado</label><select id="new-group-locale" name="locale"><option value="es">Español</option><option value="uk">Українська</option></select><button class="button button--primary" type="submit">Crear grupo</button></form>
+      <div class="admin-section__heading"><div><p class="eyebrow">Organitza</p><h2 id="grupos-title">Grups i idiomes</h2></div><p>Les invitacions d’un grup utilitzen el seu idioma. Si el canvies, també canvien els enllaços.</p></div>
+      {groups.map((group) => <form method="post" class="admin-form"><input type="hidden" name="action" value="editGroup" /><input type="hidden" name="groupId" value={group.id} /><label for={`group-name-${group.id}`}>Nom del grup</label><input id={`group-name-${group.id}`} name="name" value={group.name} maxlength="160" required /><label for={`group-locale-${group.id}`}>Idioma del grup</label><select id={`group-locale-${group.id}`} name="locale"><option value="es" selected={group.locale === 'es'}>Valencià</option><option value="uk" selected={group.locale === 'uk'}>Українська</option></select><button class="button" type="submit">Guarda el grup</button></form>)}
+      <form method="post" class="admin-form"><input type="hidden" name="action" value="createGroup" /><label for="new-group-name">Grup nou</label><input id="new-group-name" name="name" maxlength="160" required placeholder="Per exemple: família d’Ucraïna" /><label for="new-group-locale">Idioma predeterminat</label><select id="new-group-locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select><button class="button button--primary" type="submit">Crea el grup</button></form>
     </section>
     <section id="nueva" class="admin-section" aria-labelledby="nueva-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Preparar</p><h2 id="nueva-title">Nueva invitación</h2></div><p>Un enlace privado para todas las personas de esta tarjeta.</p></div>
+      <div class="admin-section__heading"><div><p class="eyebrow">Prepara</p><h2 id="nueva-title">Nova invitació</h2></div><p>Un únic enllaç privat per a totes les persones incloses en la invitació.</p></div>
       <form method="post" class="admin-form admin-form--wide"><input type="hidden" name="action" value="create" />
-        <label for="addressee">A quién va dirigida</label><input id="addressee" name="addressee" maxlength="160" required placeholder="Ej.: María y Pablo" />
-        <label for="email">Correo de contacto (opcional)</label><input id="email" name="email" type="email" maxlength="254" placeholder="Para llevar el seguimiento; no se envía automáticamente" />
-        <label for="guestNames">Personas incluidas, una por línea</label><textarea id="guestNames" name="guestNames" rows="4" required placeholder={'María\nPablo'}></textarea>
-        <label for="groupId">Grupo (opcional)</label><select id="groupId" name="groupId"><option value="">Sin grupo</option>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>
-        <label for="locale">Idioma si no hay grupo</label><select id="locale" name="locale"><option value="es">Español</option><option value="uk">Українська</option></select>
-        <label for="personalNote">Mensaje personal en español (opcional)</label><textarea id="personalNote" name="personalNote" rows="3" maxlength="1000"></textarea>
-        <label for="personalNoteUk">Mensaje personal en ucraniano (opcional)</label><textarea id="personalNoteUk" name="personalNoteUk" rows="3" maxlength="1000"></textarea>
-        <button class="button button--primary" type="submit">Crear invitación y enlace</button>
+        <label for="addressee">A qui va dirigida</label><input id="addressee" name="addressee" maxlength="160" required placeholder="Per exemple: Maria i Pau" />
+        <label for="email">Correu de contacte (opcional)</label><input id="email" name="email" type="email" maxlength="254" placeholder="Per al seguiment; no enviarem cap correu automàticament" />
+        <label for="guestNames">Persones convidades, una per línia</label><textarea id="guestNames" name="guestNames" rows="4" required placeholder={'Maria\nPau'}></textarea>
+        <label for="groupId">Grup (opcional)</label><select id="groupId" name="groupId"><option value="">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>
+        <label for="locale">Idioma si no hi ha grup</label><select id="locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select>
+        <label for="personalNote">Missatge personal en valencià (opcional)</label><textarea id="personalNote" name="personalNote" rows="3" maxlength="1000"></textarea>
+        <label for="personalNoteUk">Missatge personal en ucraïnés (opcional)</label><textarea id="personalNoteUk" name="personalNoteUk" rows="3" maxlength="1000"></textarea>
+        <button class="button button--primary" type="submit">Crea la invitació i l’enllaç</button>
       </form>
     </section>
-    <section id="ajustes" class="admin-section" aria-labelledby="ajustes-title"><div class="admin-section__heading"><div><p class="eyebrow">Control</p><h2 id="ajustes-title">Plazo de confirmación</h2></div></div>
-      <form method="post" class="admin-form"><input type="hidden" name="action" value="settings" /><label class="admin-checkbox"><input type="checkbox" name="enabled" value="yes" checked={config.rsvp_enabled} /> Permitir respuestas</label><label for="deadline">Fecha límite (opcional)</label><input type="date" id="deadline" name="deadline" value={config.rsvp_deadline ?? ''} /><button class="button button--primary" type="submit">Guardar ajustes</button></form>
+    <section id="ajustes" class="admin-section" aria-labelledby="ajustes-title"><div class="admin-section__heading"><div><p class="eyebrow">Control</p><h2 id="ajustes-title">Termini de confirmació</h2></div></div>
+      <form method="post" class="admin-form"><input type="hidden" name="action" value="settings" /><label class="admin-checkbox"><input type="checkbox" name="enabled" value="yes" checked={config.rsvp_enabled} /> Permet les respostes</label><label for="deadline">Data límit (opcional)</label><input type="date" id="deadline" name="deadline" value={config.rsvp_deadline ?? ''} /><button class="button button--primary" type="submit">Guarda la configuració</button></form>
     </section>
   </div>
 </BaseLayout>

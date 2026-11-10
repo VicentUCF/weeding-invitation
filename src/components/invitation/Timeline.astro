@@ -6,12 +6,12 @@ const locale = Astro.props.locale ?? 'es';
 const c = t(locale);
 const events = wedding.schedule;
 ---
-<section class="section timeline" aria-labelledby="timeline-title">
-  <div class="section__heading">
+<section class:list={['section', 'timeline', { 'timeline--single': events.length === 1 }]} aria-labelledby="timeline-title">
+  <div class="section__heading" data-scroll-reveal>
     <p class="eyebrow">{c.program}</p>
     <h2 id="timeline-title">{events.length > 1 ? c.moments : c.beginning}</h2>
   </div>
-  <ol class="timeline__list">
+  <ol class="timeline__list" data-scroll-reveal>
     {events.map((event) => (
       <li>
         <time>{event.time}</time>

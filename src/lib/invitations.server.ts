@@ -52,7 +52,7 @@ export async function updateGroup(id: string, name: string, locale: Locale) {
   try {
     await client.query('begin');
     const result = await client.query('update wedding.invitation_groups set name=$2, locale=$3 where id=$1', [id, name, locale]);
-    if (!result.rowCount) throw new Error('Grupo no encontrado.');
+    if (!result.rowCount) throw new Error('No hem trobat el grup.');
     await client.query('update wedding.invitations set locale=$2, updated_at=now() where group_id=$1', [id, locale]);
     await client.query('commit');
   } catch (error) { await client.query('rollback'); throw error; }
@@ -90,7 +90,7 @@ export async function createInvitation(input: { addressee: string; email: string
     let locale = input.locale;
     if (input.groupId) {
       const group = await client.query<InvitationGroup>('select id, name, locale from wedding.invitation_groups where id=$1 for share', [input.groupId]);
-      if (!group.rows[0]) throw new Error('Grupo no encontrado.');
+      if (!group.rows[0]) throw new Error('No hem trobat el grup.');
       locale = group.rows[0].locale;
     }
     const row = await client.query<{ id: string }>('insert into wedding.invitations (token_hash, token_encrypted, addressee, email, personal_note, personal_note_uk, group_id, locale) values ($1, $2, $3, $4, $5, $6, $7, $8) returning id', [hashToken(token), encrypt(token), input.addressee, input.email, input.personalNote, input.personalNoteUk, input.groupId, locale]);
@@ -107,7 +107,7 @@ export async function updateInvitation(id: string, input: { addressee: string; e
     let locale = input.locale;
     if (input.groupId) {
       const group = await client.query<InvitationGroup>('select id, name, locale from wedding.invitation_groups where id=$1 for share', [input.groupId]);
-      if (!group.rows[0]) throw new Error('Grupo no encontrado.');
+      if (!group.rows[0]) throw new Error('No hem trobat el grup.');
       locale = group.rows[0].locale;
     }
     await client.query('update wedding.invitations set addressee=$2, email=$3, personal_note=$4, personal_note_uk=$5, group_id=$6, locale=$7, updated_at=now() where id=$1', [id, input.addressee, input.email, input.personalNote, input.personalNoteUk, input.groupId, locale]);
@@ -145,9 +145,9 @@ export async function saveRsvp(invitationId: string, responses: { id: string; re
   try {
     await client.query('begin');
     const locked = await client.query<{ id: string }>('select id from wedding.invitations where id=$1 and revoked_at is null for update', [invitationId]);
-    if (!locked.rowCount) throw new Error('Invitación no disponible');
+    if (!locked.rowCount) throw new Error('La invitació no està disponible');
     const current = await client.query<{ id: string }>('select id from wedding.guests where invitation_id=$1 for update', [invitationId]);
-    if (current.rowCount !== responses.length || current.rows.some(({ id }) => !responses.some((response) => response.id === id))) throw new Error('La lista de invitados ha cambiado');
+    if (current.rowCount !== responses.length || current.rows.some(({ id }) => !responses.some((response) => response.id === id))) throw new Error('La llista de persones convidades ha canviat');
     for (const response of responses) {
       await client.query('update wedding.guests set response=$3, allergies=$4, dietary_notes=$5, food_data_consent=$6, responded_at=now(), updated_at=now() where id=$1 and invitation_id=$2', [response.id, invitationId, response.response, response.response === 'yes' ? response.allergies : '', response.response === 'yes' ? response.dietaryNotes : '', response.response === 'yes' && response.consent]);
     }

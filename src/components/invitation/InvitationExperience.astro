@@ -3,12 +3,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Envelope from './Envelope.astro';
 import InvitationHero from './InvitationHero.astro';
 import WeddingDetails from './WeddingDetails.astro';
+import Journey from './Journey.astro';
 import Timeline from './Timeline.astro';
-import RSVPPreview from '../rsvp/RSVPPreview.astro';
 import RSVPForm from '../rsvp/RSVPForm.astro';
 import type { Invitation, Settings } from '../../lib/invitations.server';
 import { wedding } from '../../config/wedding';
-import { invitationPath, localeName, locales, t, type Locale } from '../../lib/i18n';
+import { htmlLang, invitationPath, localeName, locales, t, type Locale } from '../../lib/i18n';
 import type { InvitationRecipient } from '../../config/recipients';
 interface Props { recipient?: InvitationRecipient; invitation?: Invitation; rsvpSettings?: Settings; rsvpError?: string; rsvpSaved?: boolean; rsvpSubmitted?: FormData; preview?: boolean; locale?: Locale }
 const { recipient, invitation, rsvpSettings, rsvpError, rsvpSaved, rsvpSubmitted, preview = false, locale = 'es' } = Astro.props;
@@ -25,15 +25,21 @@ const c = t(locale);
   </script>
   <Envelope locale={locale} />
   <div class="invitation" id="invitation-content">
-    {recipient && <nav class="language-switch" aria-label={locale === 'uk' ? 'Мова запрошення' : 'Idioma de la invitación'}>
-      {locales.map((option) => <a href={`${invitationPath(recipient.token, option)}?lang=${option}`} lang={option} aria-current={option === locale ? 'page' : undefined}>{localeName[option]}</a>)}
+    {recipient && <nav class="language-switch" aria-label={locale === 'uk' ? 'Мова запрошення' : 'Idioma de la invitació'}>
+      {locales.map((option) => <a href={`${invitationPath(recipient.token, option)}?lang=${option}`} lang={htmlLang[option]} aria-current={option === locale ? 'page' : undefined}>{localeName[option]}</a>)}
     </nav>}
-    <InvitationHero preview={preview} recipient={recipient} locale={locale} />
+    <InvitationHero recipient={recipient} locale={locale} />
+    <Journey locale={locale} />
     <WeddingDetails locale={locale} />
+    <div class="journey-art-handoff" data-journey-art-handoff aria-hidden="true">
+      <img src="/images/galim-aerial-sheet.webp" alt="" width="1383" height="922" decoding="async" />
+    </div>
+    <div class="journey-name-handoff" data-journey-name-handoff aria-hidden="true">{wedding.ceremony.venue}</div>
     <Timeline locale={locale} />
-    {invitation && rsvpSettings ? <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} /> : <RSVPPreview recipient={recipient} locale={locale} />}
+    {invitation && rsvpSettings && <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />}
     <footer class="footer">
-      <p>{wedding.couple.join(' & ')}</p>
+      <p>{c.farewell}</p>
+      <strong>{wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}</strong>
       <small>{c.footer}</small>
     </footer>
   </div>
@@ -52,8 +58,20 @@ const c = t(locale);
     const paper = document.querySelector<HTMLElement>('[data-paper="full"]');
     const hero = document.querySelector<HTMLElement>('.hero');
     const heading = document.querySelector<HTMLElement>('#hero-title');
+    const returnToRsvp = window.location.hash === '#confirmar' || new URLSearchParams(window.location.search).has('saved') || !!document.querySelector('[data-form-error]');
 
-    if (opening && invitation && envelope && seal && skip && flap && letter && card && paper && hero && heading) {
+    if (returnToRsvp) {
+      if (hero && paper) {
+        hero.appendChild(paper);
+        paper.classList.remove('hero__paper--mini');
+        paper.dataset.paper = 'full';
+      }
+      html.classList.add('invitation-open');
+      window.requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>('[data-form-error], .form-message--success, #confirmar')?.scrollIntoView({ block: 'start' });
+        document.querySelector<HTMLElement>('[data-form-error], .form-message--success')?.focus({ preventScroll: true });
+      });
+    } else if (opening && invitation && envelope && seal && skip && flap && letter && card && paper && hero && heading) {
       window.scrollTo(0, 0);
       invitation.inert = true;
       html.dataset.envelopeReady = 'true';
@@ -194,7 +212,10 @@ const c = t(locale);
         }
       };
 
-      skip.addEventListener('click', () => reveal(), { once: true });
+      skip.addEventListener('click', () => {
+        html.classList.add('invitation-skip');
+        reveal();
+      }, { once: true });
       seal.addEventListener('click', () => {
         seal.disabled = true;
         skip.disabled = true;
@@ -217,6 +238,140 @@ const c = t(locale);
       }, { once: true });
     } else {
       html.classList.add('invitation-open');
+    }
+
+    const revealTargets = [...document.querySelectorAll<HTMLElement>('[data-scroll-reveal]')];
+    if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+      revealTargets.forEach((target) => observer.observe(target));
+      html.classList.add('scroll-reveal-ready');
+    }
+
+    const journey = document.querySelector<HTMLElement>('[data-journey]');
+    const routePath = journey?.querySelector<SVGPathElement>('[data-route-path]');
+    const routeMask = journey?.querySelector<SVGPathElement>('[data-route-mask]');
+    const routeStartMask = journey?.querySelector<SVGCircleElement>('[data-route-start-mask]');
+    const routeEndMask = journey?.querySelector<SVGCircleElement>('[data-route-end-mask]');
+    const roadLine = journey?.querySelector<SVGSVGElement>('.journey__roadline');
+    const car = journey?.querySelector<HTMLElement>('[data-journey-car]');
+    const venuePreview = journey?.querySelector<HTMLElement>('[data-journey-preview]');
+    const venuePreviewName = journey?.querySelector<HTMLElement>('[data-journey-name]');
+    const venueCard = document.querySelector<HTMLElement>('[data-journey-card]');
+    const venueHeading = document.querySelector<HTMLElement>('[data-journey-heading]');
+    const venueArt = venueCard?.querySelector<HTMLElement>('.venue-card__art--aerial');
+    const venueName = venueCard?.querySelector<HTMLElement>('h3');
+    const handoff = document.querySelector<HTMLElement>('[data-journey-art-handoff]');
+    const nameHandoff = document.querySelector<HTMLElement>('[data-journey-name-handoff]');
+    if (journey && routePath && routeMask && routeStartMask && routeEndMask && roadLine && car) {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const steps = [...journey.querySelectorAll<HTMLElement>('[data-journey-step]')];
+      if ('IntersectionObserver' in window && !reduceMotion.matches) {
+        const stepObserver = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            entry.target.classList.add('is-visible');
+            stepObserver.unobserve(entry.target);
+          }
+        }, { threshold: 0.16 });
+        steps.forEach((step) => stepObserver.observe(step));
+        html.classList.add('journey-reveal-ready');
+      }
+      let frame = 0;
+      const updateJourney = () => {
+        frame = 0;
+        if (reduceMotion.matches) {
+          routeMask.style.removeProperty('stroke-dasharray');
+          routeMask.style.removeProperty('stroke-dashoffset');
+          routeStartMask.style.removeProperty('opacity');
+          routeEndMask.style.removeProperty('opacity');
+          car.style.removeProperty('opacity');
+          car.style.removeProperty('left');
+          car.style.removeProperty('top');
+          car.style.removeProperty('transform');
+          html.classList.remove('journey-card-motion');
+          venuePreview?.style.removeProperty('opacity');
+          venuePreviewName?.style.removeProperty('opacity');
+          handoff?.style.removeProperty('opacity');
+          nameHandoff?.style.removeProperty('opacity');
+          return;
+        }
+        const bounds = roadLine.getBoundingClientRect();
+        const progress = Math.max(0, Math.min(1, (window.innerHeight * .72 - bounds.top) / bounds.height));
+        const length = routePath.getTotalLength();
+        const roadLength = progress > .002 ? length * progress : 0;
+        routeMask.style.strokeDasharray = `${length} ${length}`;
+        routeMask.style.strokeDashoffset = `${length - roadLength}`;
+        routeStartMask.style.opacity = progress > .002 ? '1' : '0';
+        routeEndMask.style.opacity = progress >= .999 ? '1' : '0';
+        const point = routePath.getPointAtLength(length * progress);
+        const next = routePath.getPointAtLength(Math.min(length, length * progress + 2));
+        const previous = routePath.getPointAtLength(Math.max(0, length * progress - 2));
+        const angle = Math.atan2((next.y - previous.y) * bounds.height / 1220, (next.x - previous.x) * bounds.width / 500) * 180 / Math.PI + 90;
+        car.style.left = `${point.x / 500 * 100}%`;
+        car.style.top = `${point.y / 1000 * 100}%`;
+        car.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+        car.style.opacity = progress > .005 ? '1' : '0';
+
+        if (venuePreview && venuePreviewName && venueCard && venueArt && venueName && handoff && nameHandoff) {
+          html.classList.add('journey-card-motion');
+          const sourceBounds = venuePreview.getBoundingClientRect();
+          const documentPosition = (element: HTMLElement) => {
+            let top = 0;
+            let left = 0;
+            for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) {
+              top += node.offsetTop;
+              left += node.offsetLeft;
+            }
+            return { top, left };
+          };
+          const sourcePosition = documentPosition(venuePreview);
+          const targetPosition = documentPosition(venueArt);
+          const sourceNamePosition = documentPosition(venuePreviewName);
+          const targetNamePosition = documentPosition(venueName);
+          const sourceNameBounds = venuePreviewName.getBoundingClientRect();
+          const start = sourcePosition.top + venuePreview.offsetHeight * .15 - window.innerHeight * .72;
+          const headingTop = venueHeading ? documentPosition(venueHeading).top : Number.POSITIVE_INFINITY;
+          const finish = Math.min(targetPosition.top - window.innerHeight * .36, headingTop - 24);
+          const handoffProgress = Math.max(0, Math.min(1, (window.scrollY - start) / Math.max(1, finish - start)));
+          const moveProgress = Math.max(0, Math.min(1, (handoffProgress - .06) / .94));
+          const nameProgress = Math.max(0, Math.min(1, (handoffProgress - .06) / .75));
+          const blend = (from: number, to: number) => from + (to - from) * moveProgress;
+          const blendName = (from: number, to: number) => from + (to - from) * nameProgress;
+          const cardVisible = handoffProgress >= .92 || venueCard.contains(document.activeElement);
+          venueCard.classList.toggle('is-journey-visible', cardVisible);
+          venueHeading?.classList.toggle('is-journey-visible', cardVisible);
+          const artArrived = handoffProgress >= .99 || venueCard.contains(document.activeElement);
+          venueCard.classList.toggle('is-journey-arrived', artArrived);
+          handoff.classList.toggle('is-arrived', artArrived);
+          nameHandoff.classList.toggle('is-arrived', artArrived);
+          venuePreview.style.opacity = String(1 - Math.min(1, handoffProgress / .06));
+          venuePreviewName.style.opacity = String(1 - Math.min(1, handoffProgress / .06));
+          handoff.style.opacity = artArrived ? '0' : String(Math.min(1, handoffProgress / .06));
+          nameHandoff.style.opacity = artArrived ? '0' : String(Math.min(1, handoffProgress / .06));
+          handoff.style.width = `${blend(sourceBounds.width, venueArt.offsetWidth)}px`;
+          handoff.style.height = `${blend(sourceBounds.height, venueArt.offsetHeight)}px`;
+          handoff.style.transform = `translate3d(${blend(sourcePosition.left, targetPosition.left) - window.scrollX}px, ${blend(sourcePosition.top, targetPosition.top) - window.scrollY}px, 0)`;
+          nameHandoff.style.width = `${blendName(sourceNameBounds.width, venueName.offsetWidth)}px`;
+          nameHandoff.style.height = `${blendName(sourceNameBounds.height, venueName.offsetHeight)}px`;
+          nameHandoff.style.fontSize = `${blendName(parseFloat(getComputedStyle(venuePreviewName).fontSize), parseFloat(getComputedStyle(venueName).fontSize))}px`;
+          nameHandoff.style.transform = `translate3d(${blendName(sourceNamePosition.left, targetNamePosition.left) - window.scrollX}px, ${blendName(sourceNamePosition.top, targetNamePosition.top) - window.scrollY}px, 0)`;
+        }
+      };
+      const requestJourneyUpdate = () => {
+        if (!frame) frame = window.requestAnimationFrame(updateJourney);
+      };
+      window.addEventListener('scroll', requestJourneyUpdate, { passive: true });
+      window.addEventListener('resize', requestJourneyUpdate);
+      reduceMotion.addEventListener('change', requestJourneyUpdate);
+      venueCard?.addEventListener('focusin', requestJourneyUpdate);
+      window.addEventListener('load', requestJourneyUpdate, { once: true });
+      updateJourney();
     }
   </script>
 </BaseLayout>

@@ -6,28 +6,28 @@ export const prerender = false;
 if (await requireAdmin(Astro)) return Astro.redirect('/admin/', 303);
 let error = '';
 if (Astro.request.method === 'POST') {
-  if (!sameOrigin(Astro)) return new Response('Origen no válido', { status: 403 });
+  if (!sameOrigin(Astro)) return new Response('No s’ha pogut validar la sol·licitud', { status: 403 });
   const data = await Astro.request.formData();
   try {
     if (await signIn(Astro, String(data.get('email') ?? '').trim(), String(data.get('password') ?? ''))) return Astro.redirect('/admin/', 303);
-    error = 'Correo, contraseña o acceso no válidos.';
+    error = 'El correu o la contrasenya no són correctes, o no tens accés.';
   } catch {
-    error = 'El acceso no está configurado o no está disponible. Inténtalo más tarde.';
+    error = 'L’accés no està disponible ara mateix. Torna-ho a provar més tard.';
   }
 }
 ---
-<BaseLayout title="Acceso privado · Boda" privatePage>
+<BaseLayout title="Accés privat · Boda" privatePage>
   <div class="admin-login">
     <form method="post" class="admin-login__card">
-      <p class="eyebrow">Espacio de los novios</p>
-      <h1>Acceso privado</h1>
-      <p>Gestiona las invitaciones y las respuestas de tus invitados.</p>
+      <p class="eyebrow">Espai dels nuvis</p>
+      <h1>Accés privat</h1>
+      <p>Gestiona les invitacions i les respostes de les persones convidades.</p>
       {error && <p class="form-message form-message--error" role="alert">{error}</p>}
-      <label for="email">Correo electrónico</label>
+      <label for="email">Correu electrònic</label>
       <input id="email" type="email" name="email" autocomplete="username" required />
-      <label for="password">Contraseña</label>
+      <label for="password">Contrasenya</label>
       <input id="password" type="password" name="password" autocomplete="current-password" required />
-      <button class="button button--primary" type="submit">Entrar</button>
+      <button class="button button--primary" type="submit">Entra</button>
     </form>
   </div>
 </BaseLayout>

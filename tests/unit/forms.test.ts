@@ -10,19 +10,19 @@ const data = (values: Record<string, string>) => {
 
 describe('invitation forms', () => {
   it('requires an addressee and at least one named person', () => {
-    expect(() => invitationInput(data({ addressee: '' }))).toThrow(/Destinatario/);
-    expect(() => guestNames(data({ guestNames: '' }))).toThrow(/entre 1 y 20/);
+    expect(() => invitationInput(data({ addressee: '' }))).toThrow(/Destinatari/);
+    expect(() => guestNames(data({ guestNames: '' }))).toThrow(/entre 1 i 20/);
     expect(guestNames(data({ guestNames: 'María\nPablo' }))).toEqual(['María', 'Pablo']);
   });
 
   it('requires explicit consent for food details', () => {
     const guest = { id: 'person-1' };
     const fields = { 'response_person-1': 'yes', 'allergy_answer_person-1': 'yes', 'allergies_person-1': 'Alergia a frutos secos; evitar trazas' };
-    expect(() => rsvpInput(data(fields), [guest])).toThrow(/autorización/);
+    expect(() => rsvpInput(data(fields), [guest])).toThrow(/autoritzar/);
     expect(rsvpInput(data({ ...fields, 'consent_person-1': 'yes' }), [guest])).toEqual([{
       id: 'person-1', response: 'yes', allergies: 'Alergia a frutos secos; evitar trazas', dietaryNotes: '', consent: true,
     }]);
-    expect(() => guestInput(data({ name: 'María', response: 'yes', allergies: 'Frutos secos' }))).toThrow(/permiso/);
+    expect(() => guestInput(data({ name: 'María', response: 'yes', allergies: 'Frutos secos' }))).toThrow(/permís/);
   });
 
   it('discards food details when a person declines', () => {

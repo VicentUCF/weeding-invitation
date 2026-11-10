@@ -1,4 +1,4 @@
-# Invitación de boda · Jose y Anas
+# Invitación de boda · Jose i Anas
 
 App Astro con invitación pública, confirmación individual y panel privado para los novios. La portada `/` es una vista previa; las invitaciones reales se crean en `/admin/` y se abren mediante enlaces privados `/i/TOKEN/` (español) o `/uk/i/TOKEN/` (ucraniano).
 

@@ -1,4 +1,5 @@
 @use 'sass:color';
+@use 'sass:meta';
 
 // 1. Settings
 $ink: #4b3c3d;
@@ -320,3 +321,5 @@ h3 { font-size: 1.65rem; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   .envelope__seal { transition: none; }
 }
+
+@include meta.load-css('invitation-redesign');

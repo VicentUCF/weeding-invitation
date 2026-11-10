@@ -4,18 +4,18 @@ import { t, type Locale } from '../../lib/i18n';
 interface Props { locale?: Locale }
 const locale = Astro.props.locale ?? 'es';
 const c = t(locale);
-const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ca-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const venues = [wedding.ceremony, wedding.reception].filter((venue): venue is NonNullable<typeof venue> => venue !== null);
 ---
 <section id="detalles" class="section details" aria-labelledby="details-title">
-  <div class="section__heading details__heading">
+  <div class="section__heading details__heading" data-journey-heading>
     <p class="eyebrow">{c.bigDay}</p>
-    <h2 id="details-title">{c.whereWhen}</h2>
+    <h2 id="details-title">{c.placeTitle}</h2>
     <p>{c.detailsIntro}</p>
   </div>
   <div class="details__list">
     {venues.map((venue, index) => (
-      <article class:list={['venue-card', { 'venue-card--text-only': index > 0 }]}>
+      <article class:list={['venue-card', { 'venue-card--text-only': index > 0 }]} data-scroll-reveal={index > 0 ? '' : undefined} data-journey-card={index === 0 ? '' : undefined}>
         {index === 0 && (
           <div class="venue-card__gallery">
             <div class="venue-card__art venue-card__art--aerial">

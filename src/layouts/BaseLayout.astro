@@ -1,22 +1,22 @@
 ---
 import '../styles/main.scss';
 import { wedding } from '../config/wedding';
-import { t, type Locale } from '../lib/i18n';
+import { htmlLang, t, type Locale } from '../lib/i18n';
 interface Props { title?: string; privatePage?: boolean; preview?: boolean; locale?: Locale }
 const { privatePage = false, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
-const title = Astro.props.title ?? `${c.title} ${wedding.couple.join(' & ')}`;
+const title = Astro.props.title ?? `${c.title} ${wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}`;
 if (privatePage) {
   Astro.response.headers.set('Cache-Control', 'private, no-store');
   Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 }
 ---
 <!doctype html>
-<html lang={locale}>
+<html lang={htmlLang[locale]}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f8f1ed" />
+    <meta name="theme-color" content="#f8f5eb" />
     {(privatePage || preview) && <meta name="robots" content="noindex, nofollow" />}
     {privatePage && <meta name="referrer" content="no-referrer" />}
     <meta name="description" content={c.description} />
