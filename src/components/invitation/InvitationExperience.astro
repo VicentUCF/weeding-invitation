@@ -1,0 +1,222 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Envelope from './Envelope.astro';
+import InvitationHero from './InvitationHero.astro';
+import WeddingDetails from './WeddingDetails.astro';
+import Timeline from './Timeline.astro';
+import RSVPPreview from '../rsvp/RSVPPreview.astro';
+import RSVPForm from '../rsvp/RSVPForm.astro';
+import type { Invitation, Settings } from '../../lib/invitations.server';
+import { wedding } from '../../config/wedding';
+import { invitationPath, localeName, locales, t, type Locale } from '../../lib/i18n';
+import type { InvitationRecipient } from '../../config/recipients';
+interface Props { recipient?: InvitationRecipient; invitation?: Invitation; rsvpSettings?: Settings; rsvpError?: string; rsvpSaved?: boolean; rsvpSubmitted?: FormData; preview?: boolean; locale?: Locale }
+const { recipient, invitation, rsvpSettings, rsvpError, rsvpSaved, rsvpSubmitted, preview = false, locale = 'es' } = Astro.props;
+const c = t(locale);
+---
+<BaseLayout preview={preview} privatePage={!preview} locale={locale}>
+  <script is:inline>
+    document.documentElement.classList.add('has-js');
+    window.setTimeout(() => {
+      if (document.documentElement.dataset.envelopeReady !== 'true') {
+        document.documentElement.classList.add('invitation-open');
+      }
+    }, 8000);
+  </script>
+  <Envelope locale={locale} />
+  <div class="invitation" id="invitation-content">
+    {recipient && <nav class="language-switch" aria-label={locale === 'uk' ? 'Мова запрошення' : 'Idioma de la invitación'}>
+      {locales.map((option) => <a href={`${invitationPath(recipient.token, option)}?lang=${option}`} lang={option} aria-current={option === locale ? 'page' : undefined}>{localeName[option]}</a>)}
+    </nav>}
+    <InvitationHero preview={preview} recipient={recipient} locale={locale} />
+    <WeddingDetails locale={locale} />
+    <Timeline locale={locale} />
+    {invitation && rsvpSettings ? <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} /> : <RSVPPreview recipient={recipient} locale={locale} />}
+    <footer class="footer">
+      <p>{wedding.couple.join(' & ')}</p>
+      <small>{c.footer}</small>
+    </footer>
+  </div>
+  <script>
+    import { createTimeline } from 'animejs';
+
+    const html = document.documentElement;
+    const opening = document.querySelector<HTMLElement>('[data-opening]');
+    const invitation = document.querySelector<HTMLElement>('.invitation');
+    const envelope = document.querySelector<HTMLElement>('[data-envelope]');
+    const seal = document.querySelector<HTMLButtonElement>('[data-open]');
+    const skip = document.querySelector<HTMLButtonElement>('[data-skip]');
+    const flap = document.querySelector<HTMLElement>('[data-flap]');
+    const letter = document.querySelector<HTMLElement>('[data-letter]');
+    const card = document.querySelector<HTMLElement>('[data-card]');
+    const paper = document.querySelector<HTMLElement>('[data-paper="full"]');
+    const hero = document.querySelector<HTMLElement>('.hero');
+    const heading = document.querySelector<HTMLElement>('#hero-title');
+
+    if (opening && invitation && envelope && seal && skip && flap && letter && card && paper && hero && heading) {
+      window.scrollTo(0, 0);
+      invitation.inert = true;
+      html.dataset.envelopeReady = 'true';
+      const destination = paper.getBoundingClientRect();
+      if (window.innerWidth > 800) {
+        card.style.setProperty('--mini-card-width', `${destination.width}px`);
+        card.style.setProperty('--mini-card-height', `${destination.height}px`);
+      }
+      card.appendChild(paper);
+      paper.classList.add('hero__paper--mini');
+      paper.dataset.paper = 'mini';
+
+      const fitMiniPaper = () => {
+        const scale = Math.min(letter.clientWidth / card.offsetWidth, letter.clientHeight / card.offsetHeight);
+        card.style.setProperty('--mini-scale', String(scale));
+      };
+      fitMiniPaper();
+      const resizeObserver = new ResizeObserver(fitMiniPaper);
+      resizeObserver.observe(letter);
+
+      const reveal = () => {
+        resizeObserver.disconnect();
+        hero.appendChild(paper);
+        paper.classList.remove('hero__paper--mini');
+        paper.dataset.paper = 'full';
+        html.classList.add('invitation-open');
+        invitation.inert = false;
+        opening.hidden = true;
+        const visibleHeading = document.querySelector<HTMLElement>('#hero-title');
+        visibleHeading?.setAttribute('tabindex', '-1');
+        visibleHeading?.focus({ preventScroll: true });
+      };
+
+      const settlePaper = async () => {
+        if (typeof document.startViewTransition === 'function') {
+          const transition = document.startViewTransition(reveal);
+          await transition.finished;
+        } else {
+          const oldPaper = paper.getBoundingClientRect();
+          const portrait = paper.querySelector<HTMLImageElement>('.hero__portrait img');
+          const oldPortrait = portrait?.getBoundingClientRect();
+          reveal();
+          const newPaper = paper.getBoundingClientRect();
+          const scaleX = oldPaper.width / newPaper.width;
+          const scaleY = oldPaper.height / newPaper.height;
+          const animations = [paper.animate([
+            { transform: `translate(${oldPaper.left - newPaper.left}px, ${oldPaper.top - newPaper.top}px) scale(${scaleX}, ${scaleY})` },
+            { transform: 'none' },
+          ], { duration: 800, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'both' })];
+          if (portrait && oldPortrait) {
+            const newPortrait = portrait.getBoundingClientRect();
+            const imageStartLeft = oldPaper.left + (newPortrait.left - newPaper.left) * scaleX;
+            const imageStartTop = oldPaper.top + (newPortrait.top - newPaper.top) * scaleY;
+            animations.push(portrait.animate([
+              { transform: `translate(${(oldPortrait.left - imageStartLeft) / scaleX}px, ${(oldPortrait.top - imageStartTop) / scaleY}px) scale(${oldPortrait.width / (newPortrait.width * scaleX)}, ${oldPortrait.height / (newPortrait.height * scaleY)})` },
+              { transform: 'none' },
+            ], { duration: 800, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'both' }));
+          }
+          await Promise.all(animations.map((animation) => animation.finished));
+          animations.forEach((animation) => animation.cancel());
+        }
+      };
+
+      const moveLetter = async (
+        waypoint: { left: number; top: number; width: number; height: number },
+        target: { left: number; top: number; width: number; height: number },
+        duration: number,
+      ) => {
+        const start = letter.getBoundingClientRect();
+        const animation = letter.animate(
+          [
+            { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, offset: 0 },
+            { left: `${waypoint.left}px`, top: `${waypoint.top}px`, width: `${waypoint.width}px`, height: `${waypoint.height}px`, offset: .27 },
+            { left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px` },
+          ],
+          { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' },
+        );
+        await animation.finished;
+        Object.assign(letter.style, {
+          left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px`,
+        });
+        animation.cancel();
+      };
+
+      const continueOpening = async () => {
+        try {
+          const start = letter.getBoundingClientRect();
+          opening.appendChild(letter);
+          Object.assign(letter.style, {
+            position: 'fixed', inset: 'auto', left: `${start.left}px`, top: `${start.top}px`,
+            width: `${start.width}px`, height: `${start.height}px`, transform: 'none', zIndex: '7',
+          });
+          fitMiniPaper();
+
+          const envelopeStart = envelope.getBoundingClientRect();
+          const waypointWidth = Math.max(start.width, Math.min(destination.width * .8, start.width * 1.1));
+          const waypointHeight = waypointWidth * card.offsetHeight / card.offsetWidth;
+          const waypoint = {
+            left: start.left + (start.width - waypointWidth) / 2,
+            top: Math.max(12, start.top - Math.min(100, window.innerHeight * .12)),
+            width: waypointWidth,
+            height: waypointHeight,
+          };
+          const target = {
+            left: destination.left, top: destination.top,
+            width: destination.width, height: destination.width * card.offsetHeight / card.offsetWidth,
+          };
+          const envelopeDrop = Math.max(0, waypoint.top + waypoint.height + 40 - envelopeStart.top);
+          const envelopeFinalDrop = Math.max(envelopeDrop, target.top + target.height + 40 - envelopeStart.top);
+          let clippingLetter = true;
+          const clipInsideEnvelope = () => {
+            if (!clippingLetter) return;
+            const letterBounds = letter.getBoundingClientRect();
+            const hiddenBottom = Math.max(0, letterBounds.bottom - envelope.getBoundingClientRect().top);
+            letter.style.clipPath = hiddenBottom > 0 ? `inset(0 0 ${hiddenBottom}px 0)` : 'none';
+            window.requestAnimationFrame(clipInsideEnvelope);
+          };
+          clipInsideEnvelope();
+          opening.classList.add('opening--approaching');
+          await Promise.all([
+            moveLetter(waypoint, target, 1550),
+            letter.animate([
+              { transform: 'translateY(0) rotate(0deg)' },
+              { transform: 'translateY(-8px) rotate(-.8deg)', offset: .48 },
+              { transform: 'translateY(0) rotate(0deg)' },
+            ], { duration: 1550, easing: 'ease-in-out' }).finished,
+            envelope.animate([
+              { top: '0px', opacity: 1, offset: 0 },
+              { top: `${envelopeDrop}px`, opacity: 1, offset: .27 },
+              { top: `${envelopeFinalDrop}px`, opacity: 0, offset: 1 },
+            ], { duration: 1550, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' }).finished,
+          ]);
+          clippingLetter = false;
+          letter.style.clipPath = 'none';
+          await settlePaper();
+        } catch {
+          reveal();
+        }
+      };
+
+      skip.addEventListener('click', () => reveal(), { once: true });
+      seal.addEventListener('click', () => {
+        seal.disabled = true;
+        skip.disabled = true;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          reveal();
+          return;
+        }
+
+        opening.dataset.state = 'opening';
+        html.classList.add('invitation-unveiling');
+        try {
+          createTimeline({ defaults: { ease: 'inOut(3)' }, onComplete: () => { void continueOpening(); } })
+            .add(flap, { rotateX: [0, '-80deg'], duration: 650, ease: 'out(2)' }, 0)
+            .add(flap, { rotateX: ['-80deg', '-180deg'], duration: 450, ease: 'inOut(2)' }, 650)
+            .add(letter, { y: ['0%', '-43%'], duration: 500, ease: 'out(3)' }, 700)
+            .add(envelope, { y: [0, 15], scale: [1, 1.03], duration: 500, ease: 'inOut(2)' }, 700);
+        } catch {
+          reveal();
+        }
+      }, { once: true });
+    } else {
+      html.classList.add('invitation-open');
+    }
+  </script>
+</BaseLayout>

@@ -1,0 +1,48 @@
+---
+import InvitationExperience from '../../../components/invitation/InvitationExperience.astro';
+import { invitationByToken, settings, canRespond, saveRsvp } from '../../../lib/invitations.server';
+import { rsvpInput } from '../../../lib/forms.server';
+import { validToken } from '../../../lib/tokens';
+import { sameOrigin } from '../../../lib/security.server';
+import { invitationPath, t } from '../../../lib/i18n';
+
+export const prerender = false;
+const c = t('uk');
+const token = Astro.params.token ?? '';
+if (!validToken(token)) return new Response(c.notFound, { status: 404 });
+let invitation;
+let config;
+try {
+  invitation = await invitationByToken(token);
+  config = await settings();
+} catch {
+  return new Response(c.unavailable, { status: 503 });
+}
+if (!invitation) return new Response(c.notFound, { status: 404 });
+const forcedUkrainian = Astro.url.searchParams.get('lang') === 'uk';
+if (invitation.locale === 'es' && !forcedUkrainian) return Astro.redirect(invitationPath(token, 'es'), 302);
+
+let error = '';
+let submitted: FormData | undefined;
+if (Astro.request.method === 'POST') {
+  if (!sameOrigin(Astro)) return new Response(c.invalidOrigin, { status: 403 });
+  if (!canRespond(config)) return new Response(c.deadlineClosed, { status: 403 });
+  let responses;
+  try {
+    submitted = await Astro.request.formData();
+    responses = rsvpInput(submitted, invitation.guests, 'uk');
+  } catch (cause) {
+    error = cause instanceof Error ? cause.message : c.rsvpInvalid;
+  }
+  if (responses) {
+    try {
+      await saveRsvp(invitation.id, responses);
+      return Astro.redirect(`${invitationPath(token, 'uk')}?${forcedUkrainian ? 'lang=uk&' : ''}saved=1#confirmar`, 303);
+    } catch {
+      error = c.rsvpSaveError;
+    }
+  }
+}
+const recipient = { token, addressee: invitation.addressee, guests: invitation.guests.map((guest) => guest.name), personalNote: invitation.personal_note_uk ?? undefined };
+---
+<InvitationExperience recipient={recipient} invitation={invitation} rsvpSettings={config} rsvpError={error} rsvpSaved={Astro.url.searchParams.get('saved') === '1'} rsvpSubmitted={submitted} locale="uk" />

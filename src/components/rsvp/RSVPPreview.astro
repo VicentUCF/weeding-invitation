@@ -1,0 +1,27 @@
+---
+import type { InvitationRecipient } from '../../config/recipients';
+import { t, type Locale } from '../../lib/i18n';
+interface Props { recipient?: InvitationRecipient; locale?: Locale }
+const { recipient, locale = 'es' } = Astro.props;
+const c = t(locale);
+---
+<section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
+  <div class="rsvp__card">
+    <img class="rsvp__seal" src="/images/seal.webp" alt="" width="320" height="312" loading="lazy" />
+    <p class="eyebrow">{c.confirm}</p>
+    <h2 id="rsvp-title">{c.joinUs}</h2>
+    <p>{recipient ? c.previewRecipient : c.previewGeneric}</p>
+    <div class="rsvp__demo" aria-label={recipient ? c.invited : c.demo}>
+      {(recipient?.guests ?? [c.exampleGuest]).map((guest) => (
+        <div class="rsvp__guest">
+          <strong>{guest}</strong>
+          <span class="rsvp__badge">{recipient ? c.onList : c.example}</span>
+        </div>
+      ))}
+      <div class="rsvp__choices">
+        <span>{c.yes}</span><span>{c.no}</span>
+      </div>
+    </div>
+    <p class="rsvp__note">{c.previewNote}</p>
+  </div>
+</section>

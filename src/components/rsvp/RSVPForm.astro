@@ -1,0 +1,62 @@
+---
+import { canRespond, type Invitation, type Settings } from '../../lib/invitations.server';
+import { t, type Locale } from '../../lib/i18n';
+interface Props { invitation: Invitation; settings: Settings; error?: string; saved?: boolean; submitted?: FormData; locale?: Locale }
+const { invitation, settings, error = '', saved = false, submitted, locale = 'es' } = Astro.props;
+const c = t(locale);
+const open = canRespond(settings);
+const value = (name: string, fallback = '') => submitted ? String(submitted.get(name) ?? '') : fallback;
+---
+<section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
+  <div class="rsvp__card rsvp__card--form">
+    <img class="rsvp__seal" src="/images/seal.webp" alt="" width="320" height="312" loading="lazy" />
+    <p class="eyebrow">{c.confirm}</p>
+    <h2 id="rsvp-title">{c.joinUs}</h2>
+    <p>{c.rsvpIntro}</p>
+    {settings.rsvp_deadline && <p class="rsvp__deadline">{c.deadline} {new Date(`${settings.rsvp_deadline}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
+    {saved && <p class="form-message form-message--success" role="status">{c.saved}</p>}
+    {error && <p class="form-message form-message--error" role="alert">{error}</p>}
+    {!open && <p class="form-message">{c.closed}</p>}
+    <form method="post" class="rsvp-form">
+      {invitation.guests.map((guest, index) => (
+        <fieldset class="rsvp-form__guest" data-rsvp-guest disabled={!open}>
+          <legend>{index + 1}. {guest.name}</legend>
+          <div class="rsvp-form__choices" role="group" aria-label={`${c.attendance} ${guest.name}`}>
+            <label><input type="radio" name={`response_${guest.id}`} value="yes" checked={value(`response_${guest.id}`, guest.response) === 'yes'} required /> {c.yes}</label>
+            <label><input type="radio" name={`response_${guest.id}`} value="no" checked={value(`response_${guest.id}`, guest.response) === 'no'} required /> {c.no}</label>
+          </div>
+          <div class="rsvp-form__food">
+            <p>{c.allergyQuestion}</p>
+            <div class="rsvp-form__choices">
+              <label><input type="radio" name={`allergy_answer_${guest.id}`} value="no" checked={value(`allergy_answer_${guest.id}`, guest.response === 'yes' && !guest.allergies ? 'no' : '') === 'no'} /> {c.shortNo}</label>
+              <label><input type="radio" name={`allergy_answer_${guest.id}`} value="yes" checked={value(`allergy_answer_${guest.id}`, guest.allergies ? 'yes' : '') === 'yes'} /> {c.shortYes}</label>
+            </div>
+            <label for={`allergies_${guest.id}`}>{c.allergyLabel}</label>
+            <textarea id={`allergies_${guest.id}`} name={`allergies_${guest.id}`} rows="3" maxlength="2000" placeholder={c.allergyPlaceholder}>{value(`allergies_${guest.id}`, guest.allergies)}</textarea>
+            <label for={`dietary_${guest.id}`}>{c.dietaryLabel}</label>
+            <textarea id={`dietary_${guest.id}`} name={`dietary_${guest.id}`} rows="2" maxlength="1000" placeholder={c.dietaryPlaceholder}>{value(`dietary_${guest.id}`, guest.dietary_notes)}</textarea>
+            <label class="rsvp-form__consent"><input type="checkbox" name={`consent_${guest.id}`} value="yes" checked={submitted ? submitted.get(`consent_${guest.id}`) === 'yes' : guest.food_data_consent} /> {c.consent}</label>
+          </div>
+        </fieldset>
+      ))}
+      {open && <button class="button button--primary" type="submit">{c.saveRsvp}</button>}
+    </form>
+    <p class="rsvp__note">{c.privacy}</p>
+  </div>
+</section>
+<script>
+  document.querySelectorAll<HTMLFieldSetElement>('[data-rsvp-guest]').forEach((fieldset) => {
+    const sync = () => {
+      const attending = fieldset.querySelector<HTMLInputElement>('input[name^="response_"]:checked')?.value === 'yes';
+      const allergy = fieldset.querySelector<HTMLInputElement>('input[name^="allergy_answer_"]:checked')?.value === 'yes';
+      const food = fieldset.querySelector<HTMLElement>('.rsvp-form__food');
+      const allergyInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="allergy_answer_"]');
+      const detail = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="allergies_"]');
+      if (food) food.hidden = !attending;
+      allergyInputs.forEach((input) => { input.required = attending; });
+      if (detail) detail.required = attending && allergy;
+    };
+    fieldset.addEventListener('change', sync);
+    sync();
+  });
+</script>

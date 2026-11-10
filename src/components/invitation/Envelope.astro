@@ -1,0 +1,39 @@
+---
+import { wedding } from '../../config/wedding';
+import { t, type Locale } from '../../lib/i18n';
+interface Props { locale?: Locale }
+const locale = Astro.props.locale ?? 'es';
+const c = t(locale);
+---
+<section class="opening" data-opening aria-label={c.openLabel}>
+  <div class="opening__frame" aria-hidden="true"></div>
+  <img class="opening__floral opening__floral--left" src="/images/floral-corner.webp" alt="" width="860" height="900" />
+  <img class="opening__floral opening__floral--right" src="/images/floral-corner.webp" alt="" width="860" height="900" />
+  <img class="opening__petals" src="/images/petal-trail.webp" alt="" width="1000" height="667" />
+  <img class="opening__petals opening__petals--approach" src="/images/petal-trail.webp" alt="" width="1000" height="667" />
+  <div class="opening__content">
+    <p class="opening__eyebrow">{c.special}</p>
+    <div class="envelope" data-envelope>
+      <div class="envelope__glow" aria-hidden="true"></div>
+      <div class="envelope__back" aria-hidden="true"></div>
+      <div class="envelope__letter" data-letter aria-hidden="true" inert>
+        <div class="invitation-card" data-card></div>
+      </div>
+      <div class="envelope__side envelope__side--left" aria-hidden="true"></div>
+      <div class="envelope__side envelope__side--right" aria-hidden="true"></div>
+      <div class="envelope__bottom" aria-hidden="true"></div>
+      <div class="envelope__lid" data-flap>
+        <div class="envelope__flap" aria-hidden="true"></div>
+        <button class="envelope__seal" data-open type="button" aria-label={`${c.open} ${wedding.couple.join(locale === 'es' ? ' y ' : ' & ')}`}>
+          <img src="/images/seal.webp" alt="" width="320" height="312" fetchpriority="high" />
+        </button>
+      </div>
+      <span class="envelope__spark envelope__spark--one" aria-hidden="true">✦</span>
+      <span class="envelope__spark envelope__spark--two" aria-hidden="true">✧</span>
+      <span class="envelope__spark envelope__spark--three" aria-hidden="true">✦</span>
+      <span class="envelope__spark envelope__spark--four" aria-hidden="true">✧</span>
+    </div>
+    <p class="opening__hint">{c.hint}</p>
+    <button class="opening__skip" data-skip type="button">{c.skipAnimation}</button>
+  </div>
+</section>

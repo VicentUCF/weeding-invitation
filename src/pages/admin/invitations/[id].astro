@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { requireAdmin } from '../../../lib/auth.server';
+import { sameOrigin } from '../../../lib/security.server';
+import { listInvitations, listGroups, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, deleteInvitation } from '../../../lib/invitations.server';
+import { invitationInput, guestInput, formField, requiredField } from '../../../lib/forms.server';
+import { invitationPath, localeName } from '../../../lib/i18n';
+export const prerender = false;
+if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response('Invitación no encontrada', { status: 404 });
+let invitations = await listInvitations();
+const groups = await listGroups();
+let invitation = invitations.find((item) => item.id === id);
+if (!invitation) return new Response('Invitación no encontrada', { status: 404 });
+let error = '';
+if (Astro.request.method === 'POST') {
+  if (!sameOrigin(Astro)) return new Response('Origen no válido', { status: 403 });
+  const data = await Astro.request.formData();
+  try {
+    const action = formField(data, 'action');
+    if (action === 'edit') await updateInvitation(id, invitationInput(data));
+    else if (action === 'delete') {
+      if (formField(data, 'confirmName') !== invitation.addressee) throw new Error('Escribe exactamente el destinatario para borrar la invitación.');
+      await deleteInvitation(id);
+      return Astro.redirect('/admin/?deleted=1', 303);
+    }
+    else if (['sent', 'unsent', 'revoke', 'restore', 'rotate'].includes(action)) await updateInvitationState(id, action as 'sent' | 'unsent' | 'revoke' | 'restore' | 'rotate');
+    else if (action === 'addGuest') {
+      if (invitation.guests.length >= 20) throw new Error('Una invitación admite hasta 20 personas.');
+      await addGuest(id, requiredField(formField(data, 'name'), 160, 'Nombre'));
+    } else if (action === 'editGuest' || action === 'removeGuest') {
+      const guestId = formField(data, 'guestId');
+      if (!invitation.guests.some((guest) => guest.id === guestId)) throw new Error('No se encontró a esa persona.');
+      if (action === 'removeGuest') {
+        if (invitation.guests.length <= 1) throw new Error('La invitación debe tener al menos una persona.');
+        await removeGuest(guestId, id);
+      } else await updateGuest(guestId, id, guestInput(data));
+    } else throw new Error('Acción no válida.');
+    return Astro.redirect(`/admin/invitations/${id}?saved=1`, 303);
+  } catch (cause) { error = cause instanceof Error ? cause.message : 'No se pudieron guardar los cambios.'; }
+  invitations = await listInvitations();
+  invitation = invitations.find((item) => item.id === id)!;
+}
+const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
+---
+<BaseLayout title={`${invitation.addressee} · Invitaciones`} privatePage>
+  <div class="admin-shell admin-shell--detail">
+    <header class="admin-header"><div><a class="admin-back" href="/admin/">← Volver al panel</a><p class="eyebrow">Detalle de invitación</p><h1>{invitation.addressee}</h1></div><span class="admin-pill">{invitation.revoked_at ? 'Enlace revocado' : invitation.sent_at ? 'Marcada como enviada' : 'Sin enviar'}</span></header>
+    {error && <p class="form-message form-message--error" role="alert">{error}</p>}
+    {Astro.url.searchParams.has('created') && <p class="form-message form-message--success" role="status">Invitación creada. Copia el enlace para compartirla.</p>}
+    {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Cambios guardados.</p>}
+    <section class="admin-section" aria-labelledby="enlace-title"><div class="admin-section__heading"><div><p class="eyebrow">Compartir</p><h2 id="enlace-title">Enlace privado</h2></div></div>
+      <p>Compártelo directamente con las personas incluidas. Quien tenga este enlace podrá ver y modificar sus respuestas.</p>
+      <div class="admin-linkbox"><input id="invitation-link" readonly value={link} aria-label="Enlace de invitación" /><button type="button" class="button" data-copy-link>Copiar enlace</button></div>
+      <p class="admin-copy-status" data-copy-status role="status"></p>
+      <div class="admin-actions">
+        <a class="button" href={link} target="_blank" rel="noopener noreferrer">Abrir invitación</a>
+        <form method="post"><input type="hidden" name="action" value={invitation.sent_at ? 'unsent' : 'sent'} /><button type="submit" class="button">{invitation.sent_at ? 'Marcar como no enviada' : 'Marcar como enviada'}</button></form>
+        <form method="post" data-confirm="El enlace anterior dejará de funcionar. ¿Generar uno nuevo?"><input type="hidden" name="action" value="rotate" /><button type="submit" class="button">Renovar enlace</button></form>
+        <form method="post" data-confirm="¿Revocar esta invitación? El enlace dejará de funcionar hasta restaurarlo."><input type="hidden" name="action" value={invitation.revoked_at ? 'restore' : 'revoke'} /><button type="submit" class="button">{invitation.revoked_at ? 'Restaurar enlace' : 'Revocar enlace'}</button></form>
+      </div>
+      {invitation.email && <p>Correo de referencia: <a href={`mailto:${invitation.email}`}>{invitation.email}</a>. El envío se realiza desde tu correo; esta app solo registra el estado cuando lo marcas.</p>}
+    </section>
+    <section class="admin-section" aria-labelledby="tarjeta-title"><div class="admin-section__heading"><div><p class="eyebrow">Personalización</p><h2 id="tarjeta-title">Tarjeta</h2></div></div>
+      <form method="post" class="admin-form"><input type="hidden" name="action" value="edit" /><label for="addressee">Destinatario en la portada</label><input id="addressee" name="addressee" required maxlength="160" value={invitation.addressee} /><label for="email">Correo de contacto (opcional)</label><input id="email" name="email" type="email" maxlength="254" value={invitation.email ?? ''} /><label for="groupId">Grupo</label><select id="groupId" name="groupId"><option value="" selected={!invitation.group_id}>Sin grupo</option>{groups.map((group) => <option value={group.id} selected={invitation.group_id === group.id}>{group.name} · {localeName[group.locale]}</option>)}</select><label for="locale">Idioma si no hay grupo</label><select id="locale" name="locale"><option value="es" selected={invitation.locale === 'es'}>Español</option><option value="uk" selected={invitation.locale === 'uk'}>Українська</option></select><p>Si eliges un grupo, se aplica su idioma. Si cambias el idioma, comparte el nuevo enlace que aparece arriba.</p><label for="personalNote">Mensaje personal en español</label><textarea id="personalNote" name="personalNote" rows="3" maxlength="1000">{invitation.personal_note ?? ''}</textarea><label for="personalNoteUk">Mensaje personal en ucraniano</label><textarea id="personalNoteUk" name="personalNoteUk" rows="3" maxlength="1000">{invitation.personal_note_uk ?? ''}</textarea><button class="button button--primary" type="submit">Guardar tarjeta</button></form>
+    </section>
+    <section class="admin-section" aria-labelledby="personas-title"><div class="admin-section__heading"><div><p class="eyebrow">Respuesta por persona</p><h2 id="personas-title">Invitados</h2></div><p>Las alergias solo aparecen aquí y en el CSV privado.</p></div>
+      <div class="admin-guests">
+        {invitation.guests.map((guest) => <article class="admin-guest"><form method="post" class="admin-form"><input type="hidden" name="action" value="editGuest" /><input type="hidden" name="guestId" value={guest.id} /><label for={`name-${guest.id}`}>Nombre</label><input id={`name-${guest.id}`} name="name" maxlength="160" required value={guest.name} /><label for={`response-${guest.id}`}>Asistencia</label><select id={`response-${guest.id}`} name="response"><option value="pending" selected={guest.response === 'pending'}>Pendiente</option><option value="yes" selected={guest.response === 'yes'}>Asiste</option><option value="no" selected={guest.response === 'no'}>No asiste</option></select><label for={`allergies-${guest.id}`}>Alergias e intolerancias</label><textarea id={`allergies-${guest.id}`} name="allergies" rows="3" maxlength="2000">{guest.allergies}</textarea><label for={`dietary-${guest.id}`}>Otras necesidades alimentarias</label><textarea id={`dietary-${guest.id}`} name="dietaryNotes" rows="2" maxlength="1000">{guest.dietary_notes}</textarea><label class="admin-checkbox"><input type="checkbox" name="consent" value="yes" checked={guest.food_data_consent} /> Tengo permiso para registrar estos datos alimentarios</label><p class="admin-guest__date">{guest.responded_at ? `Respondió el ${guest.responded_at.toLocaleDateString('es-ES')}` : 'Sin respuesta'}</p><button class="button button--primary" type="submit">Guardar persona</button></form><form method="post" data-confirm="¿Quitar a esta persona y borrar su respuesta?"><input type="hidden" name="action" value="removeGuest" /><input type="hidden" name="guestId" value={guest.id} /><button class="admin-link admin-link--danger" type="submit">Quitar persona</button></form></article>)}
+      </div>
+      <form method="post" class="admin-add-guest"><input type="hidden" name="action" value="addGuest" /><label for="new-guest">Añadir persona a esta invitación</label><input id="new-guest" name="name" maxlength="160" required /><button class="button" type="submit">Añadir</button></form>
+    </section>
+    <section class="admin-section admin-section--danger" aria-labelledby="delete-title"><div class="admin-section__heading"><div><p class="eyebrow">Eliminar definitivamente</p><h2 id="delete-title">Borrar invitación</h2></div></div><p>Se borrarán el enlace y las respuestas de todas las personas de esta tarjeta. Esta acción no se puede deshacer.</p><form method="post" class="admin-form"><input type="hidden" name="action" value="delete" /><label for="confirmName">Escribe «{invitation.addressee}» para confirmar</label><input id="confirmName" name="confirmName" autocomplete="off" required /><button type="submit" class="button">Borrar definitivamente</button></form></section>
+  </div>
+  <script>
+    document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((form) => form.addEventListener('submit', (event) => {
+      if (!window.confirm(form.dataset.confirm ?? '¿Continuar?')) event.preventDefault();
+    }));
+    const copy = document.querySelector<HTMLButtonElement>('[data-copy-link]');
+    copy?.addEventListener('click', async () => {
+      const input = document.querySelector<HTMLInputElement>('#invitation-link');
+      const status = document.querySelector<HTMLElement>('[data-copy-status]');
+      if (!input || !status) return;
+      try { await navigator.clipboard.writeText(input.value); status.textContent = 'Enlace copiado.'; }
+      catch { input.focus(); input.select(); status.textContent = 'Selecciona el enlace y cópialo manualmente.'; }
+    });
+  </script>
+</BaseLayout>

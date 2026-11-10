@@ -1,0 +1,10 @@
+---
+import InvitationPaper from './InvitationPaper.astro';
+import type { InvitationRecipient } from '../../config/recipients';
+import type { Locale } from '../../lib/i18n';
+interface Props { greeting?: string; message?: string; preview?: boolean; recipient?: InvitationRecipient; locale?: Locale }
+const { greeting, message, preview = false, recipient, locale = 'es' } = Astro.props;
+---
+<section class="hero" aria-labelledby="hero-title">
+  <InvitationPaper recipient={recipient} preview={preview} greeting={greeting} message={message} locale={locale} />
+</section>

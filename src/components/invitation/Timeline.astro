@@ -1,0 +1,23 @@
+---
+import { wedding } from '../../config/wedding';
+import { t, type Locale } from '../../lib/i18n';
+interface Props { locale?: Locale }
+const locale = Astro.props.locale ?? 'es';
+const c = t(locale);
+const events = wedding.schedule;
+---
+<section class="section timeline" aria-labelledby="timeline-title">
+  <div class="section__heading">
+    <p class="eyebrow">{c.program}</p>
+    <h2 id="timeline-title">{events.length > 1 ? c.moments : c.beginning}</h2>
+  </div>
+  <ol class="timeline__list">
+    {events.map((event) => (
+      <li>
+        <time>{event.time}</time>
+        <div class="timeline__dot" aria-hidden="true"></div>
+        <div><h3>{locale === 'uk' ? event.titleUk : event.title}</h3><p>{locale === 'uk' ? event.descriptionUk : event.description}</p></div>
+      </li>
+    ))}
+  </ol>
+</section>

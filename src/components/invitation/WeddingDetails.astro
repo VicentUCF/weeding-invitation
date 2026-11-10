@@ -1,0 +1,43 @@
+---
+import { wedding } from '../../config/wedding';
+import { t, type Locale } from '../../lib/i18n';
+interface Props { locale?: Locale }
+const locale = Astro.props.locale ?? 'es';
+const c = t(locale);
+const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const venues = [wedding.ceremony, wedding.reception].filter((venue): venue is NonNullable<typeof venue> => venue !== null);
+---
+<section id="detalles" class="section details" aria-labelledby="details-title">
+  <div class="section__heading details__heading">
+    <p class="eyebrow">{c.bigDay}</p>
+    <h2 id="details-title">{c.whereWhen}</h2>
+    <p>{c.detailsIntro}</p>
+  </div>
+  <div class="details__list">
+    {venues.map((venue, index) => (
+      <article class:list={['venue-card', { 'venue-card--text-only': index > 0 }]}>
+        {index === 0 && (
+          <div class="venue-card__gallery">
+            <div class="venue-card__art venue-card__art--aerial">
+              <img src="/images/galim-aerial-sheet.webp" alt={c.aerial} width="1383" height="922" loading="lazy" decoding="async" />
+            </div>
+            <div class="venue-card__art venue-card__art--facade">
+              <img src="/images/galim-facade-sheet.webp" alt={c.facade} width="1076" height="717" loading="lazy" decoding="async" />
+            </div>
+          </div>
+        )}
+        <div class="venue-card__content">
+          <p class="venue-card__kicker">0{index + 1} <span aria-hidden="true">/</span> {locale === 'uk' && 'nameUk' in venue ? venue.nameUk : venue.name}</p>
+          <h3>{venue.venue}</h3>
+          <div class="venue-card__when">
+            <span>{dateLong}</span>
+            <time datetime={venue.time}>{venue.time}<small>h</small></time>
+          </div>
+          <p class="venue-card__address-label">{c.location}</p>
+          <address>{venue.address}</address>
+          <a class="button button--primary venue-card__map" href={venue.mapUrl} target="_blank" rel="noopener noreferrer">{c.directions} <span aria-hidden="true">↗</span></a>
+        </div>
+      </article>
+    ))}
+  </div>
+</section>
