@@ -29,7 +29,7 @@
 .opening__content { width: min(100%, 48rem); max-height: 100%; padding-block: .5rem; }
 .opening__eyebrow { margin-bottom: .55rem; color: var(--iv-olive); font-size: .68rem; letter-spacing: .29em; }
 .opening__names { margin: 0; color: #263f57; font-size: clamp(2.8rem, 5.5vw, 4.7rem); font-style: italic; line-height: 1.08; letter-spacing: -.055em; }
-.opening__date { margin: .75rem 0 clamp(1.4rem, 3.7vh, 2.6rem); color: var(--iv-olive); font: 600 .68rem/1.5 system-ui, sans-serif; letter-spacing: .22em; text-transform: uppercase; }
+.opening__date { margin: .75rem 0 clamp(1.4rem, 3.7vh, 2.6rem); color: var(--iv-olive); font: 600 .68rem/1.5 var(--font-body); letter-spacing: .22em; text-transform: uppercase; }
 .opening__date::after { content: ''; display: block; width: 3.5rem; height: 1px; margin: .9rem auto 0; background: var(--iv-gold); }
 .envelope { width: min(100%, 36rem, calc((100dvh - 15rem) * 1.62)); filter: drop-shadow(0 25px 30px rgba(56, 65, 49, .19)) drop-shadow(0 4px 8px rgba(56, 65, 49, .1)); }
 .envelope__glow { background: radial-gradient(circle, rgba(250, 241, 201, .82), rgba(178, 193, 158, .4) 38%, transparent 68%); }
@@ -97,7 +97,7 @@
 .hero__paper--mini .hero__portrait { width: min(100%, 27rem); }
 .hero__paper--mini h1 { font-size: clamp(4.5rem, 6.4vw, 6.1rem); }
 .hero__actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 1rem 1.5rem; }
-.hero__text-link { padding: .6rem .2rem; font: 600 .78rem/1.4 system-ui, sans-serif; text-underline-offset: .3em; }
+.hero__text-link { padding: .6rem .2rem; font: 600 .78rem/1.4 var(--font-body); text-underline-offset: .3em; }
 .invitation-open .hero__paper[data-paper='full'] [data-reveal] { animation: invitation-ink-in .65s ease-out both; }
 .invitation-skip .hero__paper[data-paper='full'] [data-reveal] { animation: none; }
 .invitation-open .hero__paper[data-paper='full'] [data-reveal]:nth-of-type(2) { animation-delay: .1s; }
@@ -126,9 +126,9 @@
 .journey__last-mile { position: relative; width: min(100%, 34rem); height: calc(var(--journey-road-height) * .22); }
 .journey__venue-stop { position: relative; width: min(100%, 28rem); margin-top: -1rem; }
 .journey__venue-preview { position: relative; width: 100%; aspect-ratio: 545 / 350; overflow: hidden; }
-.journey__venue-name { margin: .8rem 0 0; color: #263f57; font: italic clamp(1.5rem, 2.4vw, 2.1rem)/1.2 Georgia, serif; text-align: center; }
+.journey__venue-name { margin: .8rem 0 0; color: #263f57; font: italic clamp(1.5rem, 2.4vw, 2.1rem)/1.2 var(--font-display); text-align: center; }
 .journey__venue-preview img, .journey-art-handoff img { position: absolute; top: -116%; left: -152.3%; width: 253.8%; max-width: none; height: auto; }
-.journey__place { display: flex; align-items: center; gap: .5rem; width: fit-content; margin: .3rem auto 0; color: #263f57; font: italic clamp(1.15rem, 2.1vw, 1.65rem)/1.2 Georgia, serif; text-align: center; }
+.journey__place { display: flex; align-items: center; gap: .5rem; width: fit-content; margin: .3rem auto 0; color: #263f57; font: italic clamp(1.15rem, 2.1vw, 1.65rem)/1.2 var(--font-display); text-align: center; }
 .journey__place-mark { color: #29475f; font-size: .7em; font-style: normal; }
 .journey__road-scene { position: relative; width: min(100%, 34rem); height: var(--journey-road-height); margin: 2rem auto 0; }
 .journey__landscape-mobile { display: none; }
@@ -155,8 +155,8 @@
 .journey__olive-grove, .journey__cypress-grove { position: absolute; z-index: 0; height: auto; pointer-events: none; }
 .journey__olive-grove { top: 25%; right: 14%; width: clamp(11rem, 30vw, 14rem); }
 .journey__cypress-grove { top: 72%; right: 13%; width: clamp(11rem, 30vw, 14rem); }
-.journey__road-sign { position: absolute; z-index: 2; top: 40%; left: 10%; padding: .22rem .5rem; border: 2px solid #526b83; border-radius: .17rem; background: #f7f7f2; color: #324e69; font: 700 .73rem system-ui, sans-serif; letter-spacing: .08em; transform: rotate(-8deg); }
-.journey__road-direction { position: absolute; top: 66%; right: 0; max-width: 9rem; color: #324e69; font: italic 1rem Georgia, serif; text-align: center; }
+.journey__road-sign { position: absolute; z-index: 2; top: 40%; left: 10%; padding: .22rem .5rem; border: 2px solid #526b83; border-radius: .17rem; background: #f7f7f2; color: #324e69; font: 700 .73rem var(--font-body); letter-spacing: .08em; transform: rotate(-8deg); }
+.journey__road-direction { position: absolute; top: 66%; right: 0; max-width: 9rem; color: #324e69; font: italic 1rem var(--font-display); text-align: center; }
 .has-js.journey-reveal-ready .journey [data-journey-step]:not(.is-visible) { opacity: 0; transform: translateY(20px); }
 .has-js.journey-reveal-ready .journey__road-scene[data-journey-step]:not(.is-visible) { transform: none; }
 .has-js.journey-reveal-ready .journey__destination[data-journey-step]:not(.is-visible) { transform: none; }
@@ -173,7 +173,7 @@
 .journey-art-handoff { position: fixed; z-index: 20; top: 0; left: 0; display: none; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none; filter: drop-shadow(0 12px 20px rgba(44, 59, 44, .13)); }
 .has-js.journey-card-motion .journey-art-handoff { display: block; }
 .journey-art-handoff.is-arrived { transition: opacity .45s ease; }
-.journey-name-handoff { position: fixed; z-index: 21; top: 0; left: 0; display: none; opacity: 0; pointer-events: none; color: #263f57; font: italic 1.7rem/1.2 Georgia, serif; text-align: center; }
+.journey-name-handoff { position: fixed; z-index: 21; top: 0; left: 0; display: none; opacity: 0; pointer-events: none; color: #263f57; font: italic 1.7rem/1.2 var(--font-display); text-align: center; }
 .has-js.journey-card-motion .journey-name-handoff { display: block; }
 .journey-name-handoff.is-arrived { transition: opacity .45s ease; }
 @media (min-width: 1120px) {
@@ -233,7 +233,7 @@
 .invitation .rsvp-form { gap: 1.7rem; margin-top: 2.2rem; }
 .invitation .rsvp-form__guest { padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid #d4cbb6; background: linear-gradient(180deg, #fffefa, #fffdf7); box-shadow: inset 0 0 0 5px rgba(247, 243, 230, .75); }
 .invitation .rsvp-form__guest legend { padding: 0 .4rem; color: var(--iv-ink); font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
-.rsvp-form__number { margin-right: .45rem; color: var(--iv-gold); font: 700 .75rem system-ui, sans-serif; letter-spacing: .08em; }
+.rsvp-form__number { margin-right: .45rem; color: var(--iv-gold); font: 700 .75rem var(--font-body); letter-spacing: .08em; }
 .rsvp-form__question { margin: .25rem 0 .8rem !important; color: var(--iv-ink); font-size: 1.12rem; }
 .invitation .rsvp-form__choices { gap: .7rem; margin: 0 0 .8rem; }
 .invitation .rsvp-form__choices label { flex: 1 1 11rem; justify-content: flex-start; min-height: 52px; padding: .7rem 1rem; border-color: var(--iv-line); border-radius: .3rem; background: #fffdf7; color: var(--iv-ink); text-align: left; transition: border-color .2s, background .2s, transform .2s; }
@@ -245,9 +245,9 @@
 .invitation .rsvp-form__menu-heading { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid #d9d0b9; }
 .invitation .rsvp-form__menu-icon { display: block; width: 4.3rem; height: 4.3rem; flex: none; overflow: hidden; }
 .invitation .rsvp-form__menu-icon img { width: 100%; height: 100%; object-fit: contain; transform: scale(1.35); }
-.invitation .rsvp-form__menu-kicker { margin: 0 0 .1rem; color: var(--iv-olive); font: 600 .65rem/1.5 system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.invitation .rsvp-form__menu-kicker { margin: 0 0 .1rem; color: var(--iv-olive); font: 600 .65rem/1.5 var(--font-body); letter-spacing: .2em; text-transform: uppercase; }
 .invitation .rsvp-form__menu-heading h3 { margin: 0; color: var(--iv-ink); font-size: clamp(1.35rem, 3vw, 1.7rem); }
-.invitation .rsvp-form__food > label:not(.rsvp-form__consent), .invitation .rsvp-form__allergy-detail > label { display: block; margin: 1.1rem 0 .4rem; color: var(--iv-ink); font: 600 .85rem/1.5 system-ui, sans-serif; }
+.invitation .rsvp-form__food > label:not(.rsvp-form__consent), .invitation .rsvp-form__allergy-detail > label { display: block; margin: 1.1rem 0 .4rem; color: var(--iv-ink); font: 600 .85rem/1.5 var(--font-body); }
 .invitation .rsvp-form__food > .rsvp-form__observations-label { margin-top: 1.5rem; padding-top: 1.4rem; border-top: 1px solid var(--iv-line); }
 .invitation .rsvp-form__food textarea { border-color: #abb5a5; border-radius: .2rem; background: #fff; }
 .invitation .rsvp-form__food textarea:focus-visible { outline-color: var(--iv-olive); }
@@ -270,7 +270,7 @@
 .form-message--success li { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-top: 1px solid rgba(41, 75, 48, .2); }
 .invitation .footer { padding: 4rem 1rem; background: #3e5140; color: #fffdf4; }
 .invitation .footer p { font-size: clamp(2rem, 5vw, 3.5rem); }
-.invitation .footer strong { display: block; margin-bottom: .8rem; font: italic 1.2rem Georgia, serif; }
+.invitation .footer strong { display: block; margin-bottom: .8rem; font: italic 1.2rem var(--font-display); }
 
 .has-js.scroll-reveal-ready .invitation [data-scroll-reveal]:not(.is-visible) { opacity: 0; transform: translateY(22px); }
 .has-js.scroll-reveal-ready .invitation [data-scroll-reveal].is-visible { opacity: 1; transform: none; transition: opacity .7s ease, transform .7s cubic-bezier(.2,.75,.2,1); }
