@@ -48,9 +48,16 @@ test('opens the sealed envelope and reveals the configured event', async ({ page
   await expect.poll(() => page.locator('.venue-card__art--aerial img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
 });
 
-test('draws the road from Xeraco to the arrival pin as the car moves', async ({ page }) => {
+test('draws the road from Xeraco to the arrival pin as the car moves', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Entra sense animació' }).click();
+  const mobileLandscape = page.locator('.journey__landscape-mobile');
+  if (testInfo.project.name === 'mobile') {
+    await expect(mobileLandscape).toBeVisible();
+    await expect.poll(() => mobileLandscape.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  } else {
+    await expect(mobileLandscape).toBeHidden();
+  }
   await page.locator('.journey__start').scrollIntoViewIfNeeded();
   await expect(page.locator('.journey__start')).toHaveClass(/is-visible/);
   await expect.poll(() => page.evaluate(() => {
@@ -209,14 +216,40 @@ test('respects reduced motion', async ({ page }) => {
   await expect(page.locator('[data-journey-name]')).toContainText('L’Alqueria de Galim');
 });
 
-test('settles the same card without the View Transition API', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(document, 'startViewTransition', { value: undefined });
-  });
+test('returns the finished card from above after the letter leaves the screen', async ({ page }, testInfo) => {
   await page.goto('/');
   const travelingPaper = await page.locator('[data-paper="mini"]').elementHandle();
+  await page.evaluate(() => {
+    const opening = document.querySelector<HTMLElement>('[data-opening]')!;
+    const letter = document.querySelector<HTMLElement>('[data-letter]')!;
+    const envelope = document.querySelector<HTMLElement>('[data-envelope]')!;
+    const paper = document.querySelector<HTMLElement>('.hero__paper')!;
+    const sampleLetter = () => {
+      if (opening.classList.contains('opening--approaching')) {
+        const letterBounds = letter.getBoundingClientRect();
+        if (letterBounds.top >= 0 && letterBounds.bottom < window.innerHeight && letterBounds.bottom + 16 < envelope.getBoundingClientRect().top) {
+          opening.dataset.letterShown = 'true';
+        }
+        if (letterBounds.bottom < 0) opening.dataset.letterExited = 'true';
+      }
+      if (!opening.hidden) requestAnimationFrame(sampleLetter);
+    };
+    requestAnimationFrame(sampleLetter);
+    new MutationObserver(() => {
+      if (!opening.hidden) return;
+      opening.dataset.entryPaper = paper.dataset.paper;
+      opening.dataset.entryTop = String(paper.getBoundingClientRect().top);
+      opening.dataset.entryGrid = getComputedStyle(paper).gridTemplateAreas;
+    }).observe(opening, { attributes: true, attributeFilter: ['hidden'] });
+  });
   await page.locator('[data-open]').click();
   await expect(page.locator('[data-opening]')).toBeHidden();
+  await expect(page.locator('[data-opening]')).toHaveAttribute('data-letter-shown', 'true');
+  await expect(page.locator('[data-opening]')).toHaveAttribute('data-letter-exited', 'true');
+  await expect(page.locator('[data-opening]')).toHaveAttribute('data-entry-paper', 'full');
+  expect(Number(await page.locator('[data-opening]').getAttribute('data-entry-top'))).toBeLessThan(0);
+  const entryGrid = await page.locator('[data-opening]').getAttribute('data-entry-grid');
+  expect(entryGrid).toContain(testInfo.project.name === 'mobile' ? '"content" "visual" "closing"' : '"content visual"');
   expect(await travelingPaper!.evaluate((paper) => (paper as HTMLElement).dataset.paper)).toBe('full');
   await expect(page.locator('[data-paper="full"] .hero__portrait img')).toBeVisible();
 });

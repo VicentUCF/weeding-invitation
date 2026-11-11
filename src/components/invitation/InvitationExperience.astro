@@ -106,49 +106,35 @@ const c = t(locale);
         visibleHeading?.focus({ preventScroll: true });
       };
 
-      const settlePaper = async () => {
-        if (typeof document.startViewTransition === 'function') {
-          const transition = document.startViewTransition(reveal);
-          await transition.finished;
-        } else {
-          const oldPaper = paper.getBoundingClientRect();
-          const portrait = paper.querySelector<HTMLImageElement>('.hero__portrait img');
-          const oldPortrait = portrait?.getBoundingClientRect();
-          reveal();
-          const newPaper = paper.getBoundingClientRect();
-          const scaleX = oldPaper.width / newPaper.width;
-          const scaleY = oldPaper.height / newPaper.height;
-          const animations = [paper.animate([
-            { transform: `translate(${oldPaper.left - newPaper.left}px, ${oldPaper.top - newPaper.top}px) scale(${scaleX}, ${scaleY})` },
-            { transform: 'none' },
-          ], { duration: 800, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'both' })];
-          if (portrait && oldPortrait) {
-            const newPortrait = portrait.getBoundingClientRect();
-            const imageStartLeft = oldPaper.left + (newPortrait.left - newPaper.left) * scaleX;
-            const imageStartTop = oldPaper.top + (newPortrait.top - newPaper.top) * scaleY;
-            animations.push(portrait.animate([
-              { transform: `translate(${(oldPortrait.left - imageStartLeft) / scaleX}px, ${(oldPortrait.top - imageStartTop) / scaleY}px) scale(${oldPortrait.width / (newPortrait.width * scaleX)}, ${oldPortrait.height / (newPortrait.height * scaleY)})` },
-              { transform: 'none' },
-            ], { duration: 800, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'both' }));
-          }
-          await Promise.all(animations.map((animation) => animation.finished));
-          animations.forEach((animation) => animation.cancel());
-        }
+      const enterPaper = async () => {
+        reveal();
+        const distance = paper.getBoundingClientRect().bottom + 24;
+        const animation = paper.animate(
+          [
+            { transform: `translateY(-${distance}px)`, offset: 0, easing: 'cubic-bezier(.15, .85, .22, 1)' },
+            { transform: 'translateY(18px)', offset: .78, easing: 'cubic-bezier(.25, 0, .3, 1)' },
+            { transform: 'translateY(-6px)', offset: .91, easing: 'ease-out' },
+            { transform: 'none', offset: 1 },
+          ],
+          { duration: 1100, fill: 'both' },
+        );
+        await animation.finished;
+        animation.cancel();
       };
 
       const moveLetter = async (
         waypoint: { left: number; top: number; width: number; height: number },
         target: { left: number; top: number; width: number; height: number },
-        duration: number,
       ) => {
         const start = letter.getBoundingClientRect();
         const animation = letter.animate(
           [
-            { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, offset: 0 },
-            { left: `${waypoint.left}px`, top: `${waypoint.top}px`, width: `${waypoint.width}px`, height: `${waypoint.height}px`, offset: .27 },
-            { left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px` },
+            { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, offset: 0, easing: 'cubic-bezier(.35, 0, .65, 1)' },
+            { left: `${waypoint.left}px`, top: `${waypoint.top}px`, width: `${waypoint.width}px`, height: `${waypoint.height}px`, offset: .62 },
+            { left: `${waypoint.left}px`, top: `${waypoint.top}px`, width: `${waypoint.width}px`, height: `${waypoint.height}px`, offset: .76, easing: 'cubic-bezier(.65, 0, 1, 1)' },
+            { left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px`, offset: 1 },
           ],
-          { duration, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' },
+          { duration: 1900, fill: 'forwards' },
         );
         await animation.finished;
         Object.assign(letter.style, {
@@ -191,28 +177,30 @@ const c = t(locale);
             height: waypointHeight,
           };
           const target = {
-            left: destination.left, top: destination.top,
-            width: destination.width, height: destination.width * card.offsetHeight / card.offsetWidth,
+            left: waypoint.left, top: -waypointHeight - 40,
+            width: waypointWidth, height: waypointHeight,
           };
           const envelopeDrop = Math.max(0, waypoint.top + waypoint.height + 40 - envelopeStart.top);
-          const envelopeFinalDrop = Math.max(envelopeDrop, target.top + target.height + 40 - envelopeStart.top);
+          const envelopeFinalDrop = Math.max(envelopeDrop, window.innerHeight + 40 - envelopeStart.top);
           opening.classList.add('opening--approaching');
           await Promise.all([
-            moveLetter(waypoint, target, 1550),
+            moveLetter(waypoint, target),
             letter.animate([
-              { transform: 'translateY(0) rotate(0deg)' },
-              { transform: 'translateY(-8px) rotate(-.8deg)', offset: .48 },
-              { transform: 'translateY(0) rotate(0deg)' },
-            ], { duration: 1550, easing: 'ease-in-out' }).finished,
+              { transform: 'translateY(0) rotate(0deg)', offset: 0 },
+              { transform: 'translateY(-7px) rotate(-.8deg)', offset: .62 },
+              { transform: 'translateY(-7px) rotate(-.8deg)', offset: .76 },
+              { transform: 'translateY(0) rotate(0deg)', offset: 1 },
+            ], { duration: 1900, easing: 'ease-in-out' }).finished,
             envelope.animate([
-              { top: '0px', opacity: 1, offset: 0 },
-              { top: `${envelopeDrop}px`, opacity: 1, offset: .27 },
+              { top: '0px', opacity: 1, offset: 0, easing: 'cubic-bezier(.35, 0, .65, 1)' },
+              { top: `${envelopeDrop}px`, opacity: 1, offset: .62 },
+              { top: `${envelopeDrop}px`, opacity: 1, offset: .76, easing: 'cubic-bezier(.65, 0, 1, 1)' },
               { top: `${envelopeFinalDrop}px`, opacity: 0, offset: 1 },
-            ], { duration: 1550, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' }).finished,
+            ], { duration: 1900, fill: 'forwards' }).finished,
           ]);
           trackingFront = false;
           front.style.opacity = '0';
-          await settlePaper();
+          await enterPaper();
         } catch {
           reveal();
         }
@@ -231,7 +219,6 @@ const c = t(locale);
         }
 
         opening.dataset.state = 'opening';
-        html.classList.add('invitation-unveiling');
         try {
           createTimeline({
             defaults: { ease: 'inOut(3)' },

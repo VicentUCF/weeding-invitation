@@ -49,26 +49,6 @@ h3 { font-size: 1.65rem; }
 .has-js.invitation-open .opening { display: none; }
 .has-js:not(.invitation-open) body { overflow: hidden; }
 .has-js:not(.invitation-open) .invitation { visibility: hidden; pointer-events: none; }
-.invitation-unveiling .hero__paper--mini,
-.invitation-open .hero__paper[data-paper='full'] { view-transition-name: invitation-paper; }
-.invitation-unveiling .hero__paper--mini .hero__portrait,
-.invitation-open .hero__paper[data-paper='full'] .hero__portrait { view-transition-name: invitation-photo; }
-::view-transition-group(invitation-paper) { animation-duration: .8s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
-::view-transition-old(invitation-paper), ::view-transition-new(invitation-paper) { animation-duration: .8s; }
-::view-transition-group(invitation-photo) { animation-duration: .8s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
-::view-transition-old(invitation-photo), ::view-transition-new(invitation-photo) { animation-duration: .8s; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: .65s; }
-@media (max-width: 800px) {
-  .invitation-unveiling .hero__paper--mini .hero__inner,
-  .invitation-open .hero__paper[data-paper='full'] .hero__inner { view-transition-name: invitation-copy; }
-  .invitation-unveiling .hero__paper--mini .hero__closing,
-  .invitation-open .hero__paper[data-paper='full'] .hero__closing { view-transition-name: invitation-closing; }
-  ::view-transition-group(invitation-copy), ::view-transition-group(invitation-closing) { animation-duration: .8s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
-  ::view-transition-old(invitation-copy), ::view-transition-old(invitation-closing) { animation: .8s both invitation-copy-away; }
-  ::view-transition-new(invitation-copy), ::view-transition-new(invitation-closing) { animation: .8s both invitation-copy-in; }
-}
-@keyframes invitation-copy-away { 0%, 28% { opacity: 1; } 45%, 100% { opacity: 0; } }
-@keyframes invitation-copy-in { 0%, 74% { opacity: 0; } 100% { opacity: 1; } }
 .opening__frame { position: absolute; inset: clamp(.7rem, 2.5vw, 1.5rem); border: 1px solid rgba($rose, .26); pointer-events: none; }
 .opening__floral { position: absolute; z-index: 1; width: clamp(10rem, 18vw, 17rem); height: auto; opacity: .55; pointer-events: none; filter: saturate(.72); }
 .opening__floral--left { bottom: -1rem; left: -1rem; }
