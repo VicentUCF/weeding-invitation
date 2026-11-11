@@ -25,10 +25,12 @@ test('opens the sealed envelope and reveals the configured event', async ({ page
   await expect.poll(async () => (await seal.boundingBox())!.y).toBeLessThan(initialSealTop - 20);
   await expect(page.locator('[data-opening]')).toHaveClass(/opening--approaching/);
   await expect.poll(() => page.locator('[data-letter]').evaluate((node) => (node as HTMLElement).style.zIndex)).toBe('7');
-  await expect.poll(() => page.locator('[data-letter]').evaluate((node) => (node as HTMLElement).style.clipPath)).toBe('none');
-  const clearedLetter = (await page.locator('[data-letter]').boundingBox())!;
-  const loweredEnvelope = (await page.locator('[data-envelope]').boundingBox())!;
-  expect(clearedLetter.y + clearedLetter.height).toBeLessThan(loweredEnvelope.y);
+  await expect(page.locator('[data-letter]')).toHaveCSS('clip-path', 'none');
+  await expect.poll(async () => {
+    const clearedLetter = (await page.locator('[data-letter]').boundingBox())!;
+    const loweredEnvelope = (await page.locator('[data-envelope]').boundingBox())!;
+    return loweredEnvelope.y - (clearedLetter.y + clearedLetter.height);
+  }, { intervals: [50, 100] }).toBeGreaterThan(0);
   await expect(page.locator('[data-card-rotor], .invitation-card__back')).toHaveCount(0);
   await expect(fullPaper).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Jose');

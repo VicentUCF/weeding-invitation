@@ -22,9 +22,11 @@ const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale
       <div class="envelope__letter" data-letter aria-hidden="true" inert>
         <div class="invitation-card" data-card></div>
       </div>
-      <div class="envelope__side envelope__side--left" aria-hidden="true"></div>
-      <div class="envelope__side envelope__side--right" aria-hidden="true"></div>
-      <div class="envelope__bottom" aria-hidden="true"></div>
+      <div class="envelope__front" data-envelope-front aria-hidden="true">
+        <div class="envelope__side envelope__side--left"></div>
+        <div class="envelope__side envelope__side--right"></div>
+        <div class="envelope__bottom"></div>
+      </div>
       <div class="envelope__lid" data-flap>
         <div class="envelope__flap" aria-hidden="true"></div>
         <button class="envelope__seal" data-open type="button" aria-label={`${c.open} ${wedding.couple.join(' i ')}`}>

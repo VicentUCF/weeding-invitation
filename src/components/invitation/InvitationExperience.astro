@@ -50,6 +50,7 @@ const c = t(locale);
     const opening = document.querySelector<HTMLElement>('[data-opening]');
     const invitation = document.querySelector<HTMLElement>('.invitation');
     const envelope = document.querySelector<HTMLElement>('[data-envelope]');
+    const front = document.querySelector<HTMLElement>('[data-envelope-front]');
     const seal = document.querySelector<HTMLButtonElement>('[data-open]');
     const skip = document.querySelector<HTMLButtonElement>('[data-skip]');
     const flap = document.querySelector<HTMLElement>('[data-flap]');
@@ -71,7 +72,7 @@ const c = t(locale);
         document.querySelector<HTMLElement>('[data-form-error], .form-message--success, #confirmar')?.scrollIntoView({ block: 'start' });
         document.querySelector<HTMLElement>('[data-form-error], .form-message--success')?.focus({ preventScroll: true });
       });
-    } else if (opening && invitation && envelope && seal && skip && flap && letter && card && paper && hero && heading) {
+    } else if (opening && invitation && envelope && front && seal && skip && flap && letter && card && paper && hero && heading) {
       window.scrollTo(0, 0);
       invitation.inert = true;
       html.dataset.envelopeReady = 'true';
@@ -167,6 +168,20 @@ const c = t(locale);
           fitMiniPaper();
 
           const envelopeStart = envelope.getBoundingClientRect();
+          opening.appendChild(front);
+          Object.assign(front.style, { position: 'fixed', inset: 'auto', zIndex: '8' });
+          let trackingFront = true;
+          const alignFront = () => {
+            if (!trackingFront || opening.hidden) return;
+            const bounds = envelope.getBoundingClientRect();
+            Object.assign(front.style, {
+              left: `${bounds.left}px`, top: `${bounds.top}px`,
+              width: `${bounds.width}px`, height: `${bounds.height}px`,
+              opacity: getComputedStyle(envelope).opacity,
+            });
+            window.requestAnimationFrame(alignFront);
+          };
+          alignFront();
           const waypointWidth = Math.max(start.width, Math.min(destination.width * .8, start.width * 1.1));
           const waypointHeight = waypointWidth * card.offsetHeight / card.offsetWidth;
           const waypoint = {
@@ -181,15 +196,6 @@ const c = t(locale);
           };
           const envelopeDrop = Math.max(0, waypoint.top + waypoint.height + 40 - envelopeStart.top);
           const envelopeFinalDrop = Math.max(envelopeDrop, target.top + target.height + 40 - envelopeStart.top);
-          let clippingLetter = true;
-          const clipInsideEnvelope = () => {
-            if (!clippingLetter) return;
-            const letterBounds = letter.getBoundingClientRect();
-            const hiddenBottom = Math.max(0, letterBounds.bottom - envelope.getBoundingClientRect().top);
-            letter.style.clipPath = hiddenBottom > 0 ? `inset(0 0 ${hiddenBottom}px 0)` : 'none';
-            window.requestAnimationFrame(clipInsideEnvelope);
-          };
-          clipInsideEnvelope();
           opening.classList.add('opening--approaching');
           await Promise.all([
             moveLetter(waypoint, target, 1550),
@@ -204,8 +210,8 @@ const c = t(locale);
               { top: `${envelopeFinalDrop}px`, opacity: 0, offset: 1 },
             ], { duration: 1550, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' }).finished,
           ]);
-          clippingLetter = false;
-          letter.style.clipPath = 'none';
+          trackingFront = false;
+          front.style.opacity = '0';
           await settlePaper();
         } catch {
           reveal();
@@ -227,11 +233,22 @@ const c = t(locale);
         opening.dataset.state = 'opening';
         html.classList.add('invitation-unveiling');
         try {
-          createTimeline({ defaults: { ease: 'inOut(3)' }, onComplete: () => { void continueOpening(); } })
+          createTimeline({
+            defaults: { ease: 'inOut(3)' },
+            onUpdate: () => {
+              // Switch layers at the edge-on frame: the opened flap sits behind the letter.
+              const flapTurn = new DOMMatrixReadOnly(getComputedStyle(flap).transform);
+              const openedPastEdge = flapTurn.m22 <= 0;
+              flap.style.zIndex = openedPastEdge ? '1' : '3';
+              seal.style.visibility = openedPastEdge ? 'hidden' : 'visible';
+            },
+            onComplete: () => { void continueOpening(); },
+          })
             .add(flap, { rotateX: [0, '-80deg'], duration: 650, ease: 'out(2)' }, 0)
             .add(flap, { rotateX: ['-80deg', '-180deg'], duration: 450, ease: 'inOut(2)' }, 650)
-            .add(letter, { y: ['0%', '-43%'], duration: 500, ease: 'out(3)' }, 700)
-            .add(envelope, { y: [0, 15], scale: [1, 1.03], duration: 500, ease: 'inOut(2)' }, 700);
+            .call(() => { flap.classList.add('envelope__lid--open'); }, 1100)
+            .add(letter, { y: ['0%', '-43%'], duration: 500, ease: 'out(3)' }, 1150)
+            .add(envelope, { y: [0, 15], scale: [1, 1.03], duration: 500, ease: 'inOut(2)' }, 1150);
         } catch {
           reveal();
         }

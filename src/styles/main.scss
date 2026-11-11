@@ -84,23 +84,27 @@ h3 { font-size: 1.65rem; }
 .opening__skip { padding: .45rem .8rem; border: 0; background: transparent; color: $muted; cursor: pointer; font: 500 .77rem/1.5 system-ui, sans-serif; text-decoration: underline; text-underline-offset: .35em; }
 .opening__skip:hover { color: $rose-dark; }
 .opening[data-state='opening'] .opening__eyebrow,
+.opening[data-state='opening'] .opening__names,
+.opening[data-state='opening'] .opening__date,
 .opening[data-state='opening'] .opening__hint,
 .opening[data-state='opening'] .opening__skip { opacity: 0; transition: opacity .4s ease; }
 .envelope { position: relative; width: min(100%, 39rem); aspect-ratio: 1.62; margin: auto; perspective: 1100px; filter: drop-shadow(0 25px 35px rgba($rose-dark, .22)); }
 .envelope__glow { position: absolute; inset: -28%; z-index: -1; border-radius: 50%; background: radial-gradient(circle, rgba(#fff7ce, .75), rgba(#f4c8d1, .4) 35%, transparent 68%); opacity: 0; pointer-events: none; }
 .opening[data-state='opening'] .envelope__glow { animation: envelope-glow 1.65s ease-out both; }
-.envelope__back, .envelope__side, .envelope__bottom { position: absolute; inset: 0; }
-.envelope__back { z-index: 0; border: 1px solid #d3aab3; border-radius: .35rem; background: #e9c5ca; box-shadow: inset 0 0 30px rgba(white, .38); }
-.envelope__letter { position: absolute; inset: 8% 10% 5%; z-index: 1; }
+.envelope__back, .envelope__front, .envelope__side, .envelope__bottom { position: absolute; inset: 0; }
+.envelope__back { z-index: 1; border: 1px solid #d3aab3; border-radius: .35rem; background: #e9c5ca; box-shadow: inset 0 0 30px rgba(white, .38); }
+.envelope__letter { position: absolute; inset: 8% 10% 5%; z-index: 2; }
 .envelope__letter::after { content: ''; position: absolute; inset: 0; z-index: 2; background: linear-gradient(115deg, transparent 20%, rgba(#fffdf8, .38) 46%, transparent 72%); opacity: 0; pointer-events: none; }
 .opening--approaching .envelope__letter::after { animation: letter-sheen 1.2s ease-in-out .1s both; }
 .invitation-card { position: relative; width: var(--mini-card-width, 70rem); height: var(--mini-card-height, 44.375rem); transform: scale(var(--mini-scale, .25)); transform-origin: top left; }
-.envelope__side { z-index: 3; }
+.envelope__front { z-index: 3; pointer-events: none; }
+.envelope__side { z-index: 1; }
 .envelope__side--left { clip-path: polygon(0 0, 52% 51%, 0 100%); background: linear-gradient(115deg, #f3d9d7, #e9c1c7); }
 .envelope__side--right { clip-path: polygon(100% 0, 48% 51%, 100% 100%); background: linear-gradient(245deg, #e8bec4, #f5dbd8); }
-.envelope__bottom { z-index: 4; clip-path: polygon(0 100%, 50% 51%, 100% 100%); border-radius: 0 0 .35rem .35rem; background: linear-gradient(180deg, #e7bdc3, #f7dfdc); }
-.envelope__lid { position: absolute; inset: 0 0 auto; z-index: 5; height: 59%; transform-origin: top center; transform-style: preserve-3d; }
-.envelope__flap { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); background: linear-gradient(170deg, #f6dcda, #dbacb6); backface-visibility: hidden; }
+.envelope__bottom { z-index: 1; clip-path: polygon(0 100%, 50% 51%, 100% 100%); border-radius: 0 0 .35rem .35rem; background: linear-gradient(180deg, #e7bdc3, #f7dfdc); }
+.envelope__lid { position: absolute; inset: 0 0 auto; z-index: 3; height: 59%; transform-origin: top center; transform-style: preserve-3d; }
+.envelope__lid--open { transform: scaleY(-1) !important; transform-style: flat; }
+.envelope__flap { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); background: linear-gradient(170deg, #f6dcda, #dbacb6); backface-visibility: visible; }
 .envelope__seal { position: absolute; top: 86%; left: 50%; z-index: 1; display: grid; place-items: center; width: clamp(5rem, 13vw, 6.6rem); aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transform: translate(-50%, -50%) translateZ(2px); backface-visibility: hidden; transition: filter .25s, scale .25s; }
 .envelope__seal:not(:disabled):hover { filter: drop-shadow(0 0 14px rgba(#69b6a5, .6)); scale: 1.08; }
 .envelope__seal:focus-visible { outline-offset: 6px; }
