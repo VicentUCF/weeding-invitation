@@ -20,15 +20,23 @@ describe('invitation forms', () => {
     const fields = { 'response_person-1': 'yes', 'allergy_answer_person-1': 'yes', 'allergies_person-1': 'Alergia a frutos secos; evitar trazas' };
     expect(() => rsvpInput(data(fields), [guest])).toThrow(/autoritzar/);
     expect(rsvpInput(data({ ...fields, 'consent_person-1': 'yes' }), [guest])).toEqual([{
-      id: 'person-1', response: 'yes', allergies: 'Alergia a frutos secos; evitar trazas', dietaryNotes: '', consent: true,
+      id: 'person-1', response: 'yes', allergies: 'Alergia a frutos secos; evitar trazas', dietaryNotes: '', observations: '', consent: true,
     }]);
     expect(() => guestInput(data({ name: 'María', response: 'yes', allergies: 'Frutos secos' }))).toThrow(/permís/);
   });
 
   it('discards food details when a person declines', () => {
-    expect(rsvpInput(data({ 'response_person-1': 'no', 'allergies_person-1': 'Texto anterior', 'consent_person-1': 'yes' }), [{ id: 'person-1' }])).toEqual([{
-      id: 'person-1', response: 'no', allergies: '', dietaryNotes: '', consent: false,
+    expect(rsvpInput(data({ 'response_person-1': 'no', 'allergies_person-1': 'Texto anterior', 'observations_person-1': 'Texto anterior', 'consent_person-1': 'yes' }), [{ id: 'person-1' }])).toEqual([{
+      id: 'person-1', response: 'no', allergies: '', dietaryNotes: '', observations: '', consent: false,
     }]);
+  });
+
+  it('accepts a general observation without food consent and limits its length', () => {
+    const guest = { id: 'person-1' };
+    expect(rsvpInput(data({ 'response_person-1': 'yes', 'allergy_answer_person-1': 'no', 'observations_person-1': 'Arribaré un poc més tard' }), [guest])).toEqual([{
+      id: 'person-1', response: 'yes', allergies: '', dietaryNotes: '', observations: 'Arribaré un poc més tard', consent: false,
+    }]);
+    expect(() => rsvpInput(data({ 'response_person-1': 'yes', 'allergy_answer_person-1': 'no', 'observations_person-1': 'x'.repeat(1001) }), [guest])).toThrow(/màxim 1000 caràcters/);
   });
 
   it('validates invitation language and translates guest validation', () => {

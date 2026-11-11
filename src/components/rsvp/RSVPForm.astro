@@ -1,24 +1,28 @@
 ---
 import { canRespond, type Invitation, type Settings } from '../../lib/invitations.server';
 import { t, type Locale } from '../../lib/i18n';
-interface Props { invitation: Invitation; settings: Settings; error?: string; saved?: boolean; submitted?: FormData; locale?: Locale }
-const { invitation, settings, error = '', saved = false, submitted, locale = 'es' } = Astro.props;
+interface Props { invitation?: Invitation; settings?: Settings; error?: string; saved?: boolean; submitted?: FormData; preview?: boolean; locale?: Locale }
+const { invitation, settings, error = '', saved = false, submitted, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
-const open = canRespond(settings);
+const open = preview || (settings ? canRespond(settings) : false);
+const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', observations: '', food_data_consent: false }] : []);
 const value = (name: string, fallback = '') => submitted ? String(submitted.get(name) ?? '') : fallback;
 ---
 <section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
+  <img class="rsvp__olive rsvp__olive--left" src="/images/olive-corner.webp" alt="" width="1200" height="800" loading="lazy" decoding="async" aria-hidden="true" />
+  <img class="rsvp__olive rsvp__olive--right" src="/images/olive-corner.webp" alt="" width="1200" height="800" loading="lazy" decoding="async" aria-hidden="true" />
   <div class="rsvp__card rsvp__card--form" data-scroll-reveal>
     <img class="rsvp__seal" src="/images/seal.webp" alt="" width="320" height="312" loading="lazy" />
     <p class="eyebrow">{c.confirm}</p>
     <h2 id="rsvp-title">{c.joinUs}</h2>
-    <p>{c.rsvpIntro}</p>
-    {settings.rsvp_deadline && <p class="rsvp__deadline">{c.deadline} {new Date(`${settings.rsvp_deadline}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
-    {saved && <div class="form-message form-message--success" role="status" tabindex="-1"><p>{c.saved}</p><ul>{invitation.guests.map((guest) => <li><strong>{guest.name}</strong><span>{guest.response === 'yes' ? c.yes : guest.response === 'no' ? c.no : c.pending}</span></li>)}</ul></div>}
+    <div class="rsvp__divider" aria-hidden="true"><span></span><svg viewBox="0 0 74 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 14h22m26 0h22M31 14c3-5 9-5 12 0-3 5-9 5-12 0Z" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/><path d="M37 9c1-3 3-5 6-6M37 19c-1 3-3 5-6 6" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/></svg><span></span></div>
+    <p>{preview ? c.previewRsvpIntro : c.rsvpIntro}</p>
+    {settings?.rsvp_deadline && <p class="rsvp__deadline">{c.deadline} {new Date(`${settings.rsvp_deadline}T12:00:00Z`).toLocaleDateString(locale === 'uk' ? 'uk-UA' : 'ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
+    {saved && <div class="form-message form-message--success" role="status" tabindex="-1"><p>{c.saved}</p><ul>{guests.map((guest) => <li><strong>{guest.name}</strong><span>{guest.response === 'yes' ? c.yes : guest.response === 'no' ? c.no : c.pending}</span></li>)}</ul></div>}
     {error && <p class="form-message form-message--error" role="alert" tabindex="-1" data-form-error>{error}</p>}
     {!open && <p class="form-message">{c.closed}</p>}
-    <form method="post" class="rsvp-form">
-      {invitation.guests.map((guest, index) => (
+    <form method={preview ? undefined : 'post'} class="rsvp-form" data-rsvp-preview={preview ? '' : undefined}>
+      {guests.map((guest, index) => (
         <fieldset class="rsvp-form__guest" data-rsvp-guest disabled={!open}>
           <legend><span class="rsvp-form__number">0{index + 1}</span> {guest.name}</legend>
           <p class="rsvp-form__question">{c.attendanceQuestion}</p>
@@ -27,6 +31,10 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
             <label><input type="radio" name={`response_${guest.id}`} value="no" checked={value(`response_${guest.id}`, guest.response) === 'no'} required /><span>{c.no}</span></label>
           </div>
           <div class="rsvp-form__food">
+            <div class="rsvp-form__menu-heading">
+              <span class="rsvp-form__menu-icon" aria-hidden="true"><img src="/images/menu-icon-refined.png" alt="" width="1254" height="1254" loading="lazy" decoding="async" /></span>
+              <div><p class="rsvp-form__menu-kicker">{c.menuKicker}</p><h3>{c.menuTitle}</h3></div>
+            </div>
             <p class="rsvp-form__question">{c.allergyQuestion}</p>
             <div class="rsvp-form__choices rsvp-form__choices--small" role="group" aria-label={`${c.allergyQuestion} ${guest.name}`}>
               <label><input type="radio" name={`allergy_answer_${guest.id}`} value="no" checked={value(`allergy_answer_${guest.id}`, guest.response === 'yes' && !guest.allergies ? 'no' : '') === 'no'} /><span>{c.shortNo}</span></label>
@@ -39,15 +47,19 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
             <label for={`dietary_${guest.id}`}>{c.dietaryLabel}</label>
             <textarea id={`dietary_${guest.id}`} name={`dietary_${guest.id}`} rows="2" maxlength="1000" placeholder={c.dietaryPlaceholder}>{value(`dietary_${guest.id}`, guest.dietary_notes)}</textarea>
             <label class="rsvp-form__consent"><input type="checkbox" name={`consent_${guest.id}`} value="yes" checked={submitted ? submitted.get(`consent_${guest.id}`) === 'yes' : guest.food_data_consent} /><span>{c.consent}</span></label>
+            <label class="rsvp-form__observations-label" for={`observations_${guest.id}`}>{c.observationsLabel}</label>
+            <textarea id={`observations_${guest.id}`} name={`observations_${guest.id}`} rows="3" maxlength="1000" placeholder={c.observationsPlaceholder}>{value(`observations_${guest.id}`, guest.observations)}</textarea>
           </div>
         </fieldset>
       ))}
-      {open && <button class="button button--primary rsvp-form__submit" type="submit">{c.saveRsvp} <span aria-hidden="true">→</span></button>}
+      {open && !preview && <button class="button button--primary rsvp-form__submit" type="submit">{c.saveRsvp} <span aria-hidden="true">→</span></button>}
     </form>
+    {preview && <p class="rsvp__preview-note">{c.previewRsvpNote}</p>}
     <p class="rsvp__note">{c.privacy}</p>
   </div>
 </section>
 <script>
+  document.querySelectorAll<HTMLFormElement>('[data-rsvp-preview]').forEach((form) => form.addEventListener('submit', (event) => event.preventDefault()));
   document.querySelectorAll<HTMLFieldSetElement>('[data-rsvp-guest]').forEach((fieldset) => {
     const sync = () => {
       const attending = fieldset.querySelector<HTMLInputElement>('input[name^="response_"]:checked')?.value === 'yes';

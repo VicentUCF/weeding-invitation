@@ -7,7 +7,7 @@ import type { Locale } from './i18n';
 export type ResponseStatus = 'pending' | 'yes' | 'no';
 export interface Guest {
   id: string; invitation_id: string; name: string; response: ResponseStatus;
-  allergies: string; dietary_notes: string; food_data_consent: boolean;
+  allergies: string; dietary_notes: string; observations: string; food_data_consent: boolean;
   responded_at: Date | null;
 }
 export interface Invitation {
@@ -61,7 +61,7 @@ export async function updateGroup(id: string, name: string, locale: Locale) {
 async function attachGuests(rows: Omit<Invitation, 'guests'>[]): Promise<Invitation[]> {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
-  const guests = (await db().query<Guest>('select id, invitation_id, name, response, allergies, dietary_notes, food_data_consent, responded_at from wedding.guests where invitation_id = any($1::uuid[]) order by invitation_id, sort_order, created_at, id', [ids])).rows;
+  const guests = (await db().query<Guest>('select id, invitation_id, name, response, allergies, dietary_notes, observations, food_data_consent, responded_at from wedding.guests where invitation_id = any($1::uuid[]) order by invitation_id, sort_order, created_at, id', [ids])).rows;
   return rows.map((row) => ({ ...row, guests: guests.filter((guest) => guest.invitation_id === row.id) }));
 }
 
@@ -128,8 +128,8 @@ export async function updateInvitationState(id: string, action: 'sent' | 'unsent
 export async function addGuest(invitationId: string, name: string) {
   await db().query('insert into wedding.guests (invitation_id, name, sort_order) select $1, $2, coalesce(max(sort_order), -1) + 1 from wedding.guests where invitation_id=$1', [invitationId, name]);
 }
-export async function updateGuest(id: string, invitationId: string, input: { name: string; response: ResponseStatus; allergies: string; dietaryNotes: string; consent: boolean }) {
-  await db().query(`update wedding.guests set name=$3, response=$4, allergies=$5, dietary_notes=$6, food_data_consent=$7, responded_at=case when $4='pending' then null else coalesce(responded_at, now()) end, updated_at=now() where id=$1 and invitation_id=$2`, [id, invitationId, input.name, input.response, input.response === 'yes' ? input.allergies : '', input.response === 'yes' ? input.dietaryNotes : '', input.response === 'yes' && input.consent]);
+export async function updateGuest(id: string, invitationId: string, input: { name: string; response: ResponseStatus; allergies: string; dietaryNotes: string; observations: string; consent: boolean }) {
+  await db().query(`update wedding.guests set name=$3, response=$4, allergies=$5, dietary_notes=$6, observations=$7, food_data_consent=$8, responded_at=case when $4='pending' then null else coalesce(responded_at, now()) end, updated_at=now() where id=$1 and invitation_id=$2`, [id, invitationId, input.name, input.response, input.response === 'yes' ? input.allergies : '', input.response === 'yes' ? input.dietaryNotes : '', input.response === 'yes' ? input.observations : '', input.response === 'yes' && input.consent]);
 }
 export async function removeGuest(id: string, invitationId: string) {
   await db().query('delete from wedding.guests where id=$1 and invitation_id=$2', [id, invitationId]);
@@ -140,7 +140,7 @@ export async function deleteInvitation(id: string) {
 export async function saveSettings(input: Settings) {
   await db().query('update wedding.settings set rsvp_enabled=$1, rsvp_deadline=$2, updated_at=now() where id=true', [input.rsvp_enabled, input.rsvp_deadline]);
 }
-export async function saveRsvp(invitationId: string, responses: { id: string; response: 'yes' | 'no'; allergies: string; dietaryNotes: string; consent: boolean }[]) {
+export async function saveRsvp(invitationId: string, responses: { id: string; response: 'yes' | 'no'; allergies: string; dietaryNotes: string; observations: string; consent: boolean }[]) {
   const client = await db().connect();
   try {
     await client.query('begin');
@@ -149,7 +149,7 @@ export async function saveRsvp(invitationId: string, responses: { id: string; re
     const current = await client.query<{ id: string }>('select id from wedding.guests where invitation_id=$1 for update', [invitationId]);
     if (current.rowCount !== responses.length || current.rows.some(({ id }) => !responses.some((response) => response.id === id))) throw new Error('La llista de persones convidades ha canviat');
     for (const response of responses) {
-      await client.query('update wedding.guests set response=$3, allergies=$4, dietary_notes=$5, food_data_consent=$6, responded_at=now(), updated_at=now() where id=$1 and invitation_id=$2', [response.id, invitationId, response.response, response.response === 'yes' ? response.allergies : '', response.response === 'yes' ? response.dietaryNotes : '', response.response === 'yes' && response.consent]);
+      await client.query('update wedding.guests set response=$3, allergies=$4, dietary_notes=$5, observations=$6, food_data_consent=$7, responded_at=now(), updated_at=now() where id=$1 and invitation_id=$2', [response.id, invitationId, response.response, response.response === 'yes' ? response.allergies : '', response.response === 'yes' ? response.dietaryNotes : '', response.response === 'yes' ? response.observations : '', response.response === 'yes' && response.consent]);
     }
     await client.query('commit');
   } catch (error) { await client.query('rollback'); throw error; }

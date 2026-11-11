@@ -35,9 +35,10 @@ export function guestInput(data: FormData) {
   if (!['pending', 'yes', 'no'].includes(response)) throw new Error('Selecciona un estat vàlid.');
   const allergies = optional(field(data, 'allergies'), 2000, 'Al·lèrgies');
   const dietaryNotes = optional(field(data, 'dietaryNotes'), 1000, 'Necessitats alimentàries');
+  const observations = optional(field(data, 'observations'), 1000, 'Observacions');
   const consent = field(data, 'consent') === 'yes';
   if (response === 'yes' && (allergies || dietaryNotes) && !consent) throw new Error('Confirma que tens permís per a registrar la informació alimentària.');
-  return { name, response, allergies, dietaryNotes, consent };
+  return { name, response, allergies, dietaryNotes, observations, consent };
 }
 export function rsvpInput(data: FormData, guests: { id: string }[], locale: Locale = 'es') {
   const c = t(locale);
@@ -48,8 +49,9 @@ export function rsvpInput(data: FormData, guests: { id: string }[], locale: Loca
     if (response === 'yes' && allergiesAnswer !== 'yes' && allergiesAnswer !== 'no') throw new Error(c.selectAllergy);
     const allergies = response === 'yes' && allergiesAnswer === 'yes' ? required(field(data, `allergies_${id}`), 2000, c.allergyRequired, locale) : '';
     const dietaryNotes = response === 'yes' ? optional(field(data, `dietary_${id}`), 1000, c.dietaryRequired, locale) : '';
+    const observations = response === 'yes' ? optional(field(data, `observations_${id}`), 1000, c.observationsLabel, locale) : '';
     const consent = response === 'yes' && field(data, `consent_${id}`) === 'yes';
     if ((allergies || dietaryNotes) && !consent) throw new Error(c.consentRequired);
-    return { id, response: response as 'yes' | 'no', allergies, dietaryNotes, consent };
+    return { id, response: response as 'yes' | 'no', allergies, dietaryNotes, observations, consent };
   });
 }

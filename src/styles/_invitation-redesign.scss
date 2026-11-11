@@ -212,34 +212,57 @@
 .invitation .timeline__dot { border-color: var(--iv-gold); }
 .invitation .timeline__list p { color: var(--iv-muted); }
 
-.invitation .rsvp { position: relative; background: url('/images/paper-grain.svg') repeat, radial-gradient(circle at 50% 5%, #edf0e7, #e7eadd); background-size: 256px 256px, cover; }
-.invitation .rsvp__card { position: relative; max-width: 49rem; border: 1px solid #d3d8c9; background: #fcfaf2; box-shadow: 0 22px 60px rgba(44, 59, 44, .1); }
-.invitation .rsvp__card::before { content: ''; position: absolute; inset: .65rem; border: 1px solid rgba(80, 101, 72, .15); pointer-events: none; }
+.invitation .rsvp { position: relative; overflow: hidden; background: url('/images/paper-grain.svg') repeat, radial-gradient(circle at 50% 5%, #edf0e7, #e7eadd); background-size: 256px 256px, cover; }
+.invitation .rsvp__olive { position: absolute; width: clamp(18rem, 32vw, 30rem); height: auto; opacity: .34; pointer-events: none; }
+.invitation .rsvp__olive--left { top: 1.5rem; left: max(-9rem, calc(50% - 53rem)); transform: rotate(90deg); }
+.invitation .rsvp__olive--right { right: max(-9rem, calc(50% - 53rem)); bottom: 1.5rem; transform: rotate(270deg); }
+.invitation .rsvp__card { position: relative; z-index: 1; max-width: 49rem; border: 1px solid #c9c1a8; background: url('/images/paper-grain.svg') repeat, linear-gradient(155deg, #fffdf7 0%, #fcfaf2 57%, #f6f2e6 100%); background-size: 256px 256px, cover; box-shadow: 0 28px 75px rgba(44, 59, 44, .13), 0 3px 8px rgba(44, 59, 44, .06); }
+.invitation .rsvp__card::before { content: ''; position: absolute; inset: .65rem; border: 1px solid rgba(154, 132, 96, .35); pointer-events: none; }
 .invitation .rsvp__seal { width: 4.8rem; height: 4.8rem; }
 .invitation .rsvp__card > p { color: var(--iv-muted); }
 .invitation .rsvp__card > .eyebrow { color: var(--iv-olive); }
+.invitation .rsvp__card h2 { margin-bottom: .55rem; }
+.invitation .rsvp__divider { display: flex; align-items: center; justify-content: center; gap: .6rem; width: min(100%, 17rem); margin: 0 auto 1.5rem; color: var(--iv-gold); }
+.invitation .rsvp__divider span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(154, 132, 96, .7)); }
+.invitation .rsvp__divider span:last-child { transform: rotate(180deg); }
+.invitation .rsvp__divider svg { width: 4.6rem; flex: none; }
 .invitation .rsvp__deadline { margin-top: 1rem; color: var(--iv-ink) !important; }
 .invitation .rsvp__demo { border-color: var(--iv-line); background: #f8f6ec; }
 .invitation .rsvp__badge { background: var(--iv-olive-soft); color: var(--iv-olive); }
 .invitation .rsvp__choices span { border-color: var(--iv-line); }
 .invitation .rsvp-form { gap: 1.7rem; margin-top: 2.2rem; }
-.invitation .rsvp-form__guest { padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid var(--iv-line); background: #fffdf7; }
+.invitation .rsvp-form__guest { padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid #d4cbb6; background: linear-gradient(180deg, #fffefa, #fffdf7); box-shadow: inset 0 0 0 5px rgba(247, 243, 230, .75); }
 .invitation .rsvp-form__guest legend { padding: 0 .4rem; color: var(--iv-ink); font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
 .rsvp-form__number { margin-right: .45rem; color: var(--iv-gold); font: 700 .75rem system-ui, sans-serif; letter-spacing: .08em; }
 .rsvp-form__question { margin: .25rem 0 .8rem !important; color: var(--iv-ink); font-size: 1.12rem; }
 .invitation .rsvp-form__choices { gap: .7rem; margin: 0 0 .8rem; }
-.invitation .rsvp-form__choices label { flex: 1 1 11rem; justify-content: center; min-height: 52px; padding: .7rem 1rem; border-color: var(--iv-line); border-radius: .3rem; background: #fffdf7; color: var(--iv-ink); text-align: center; transition: border-color .2s, background .2s, transform .2s; }
+.invitation .rsvp-form__choices label { flex: 1 1 11rem; justify-content: flex-start; min-height: 52px; padding: .7rem 1rem; border-color: var(--iv-line); border-radius: .3rem; background: #fffdf7; color: var(--iv-ink); text-align: left; transition: border-color .2s, background .2s, transform .2s; }
+.invitation .rsvp-form__choices:not(.rsvp-form__choices--small) label { padding-left: 2rem; }
 .invitation .rsvp-form__choices label:hover { border-color: var(--iv-olive); transform: translateY(-1px); }
-.invitation .rsvp-form__choices label:has(input:checked) { border-color: var(--iv-olive); background: var(--iv-olive-soft); box-shadow: inset 0 0 0 1px var(--iv-olive); }
+.invitation .rsvp-form__choices label:has(input:checked) { border-color: var(--iv-olive); background: var(--iv-olive-soft); box-shadow: inset 0 0 0 1px var(--iv-olive), 0 3px 0 rgba(154, 132, 96, .22); }
 .invitation .rsvp-form__choices--small label { flex-grow: 0; flex-basis: 7rem; }
-.invitation .rsvp-form__food { margin-top: 1.25rem; padding-top: 1.5rem; border-color: var(--iv-line); }
+.invitation .rsvp-form__food { margin-top: 1.4rem; padding: clamp(1rem, 3vw, 1.65rem); border: 1px solid #d7ccb2; background: url('/images/paper-grain.svg') repeat, linear-gradient(145deg, #faf7ed, #f4f0e2); background-size: 256px 256px, cover; }
+.invitation .rsvp-form__menu-heading { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid #d9d0b9; }
+.invitation .rsvp-form__menu-icon { display: block; width: 4.3rem; height: 4.3rem; flex: none; overflow: hidden; }
+.invitation .rsvp-form__menu-icon img { width: 100%; height: 100%; object-fit: contain; transform: scale(1.35); }
+.invitation .rsvp-form__menu-kicker { margin: 0 0 .1rem; color: var(--iv-olive); font: 600 .65rem/1.5 system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.invitation .rsvp-form__menu-heading h3 { margin: 0; color: var(--iv-ink); font-size: clamp(1.35rem, 3vw, 1.7rem); }
 .invitation .rsvp-form__food > label:not(.rsvp-form__consent), .invitation .rsvp-form__allergy-detail > label { display: block; margin: 1.1rem 0 .4rem; color: var(--iv-ink); font: 600 .85rem/1.5 system-ui, sans-serif; }
+.invitation .rsvp-form__food > .rsvp-form__observations-label { margin-top: 1.5rem; padding-top: 1.4rem; border-top: 1px solid var(--iv-line); }
 .invitation .rsvp-form__food textarea { border-color: #abb5a5; border-radius: .2rem; background: #fff; }
 .invitation .rsvp-form__food textarea:focus-visible { outline-color: var(--iv-olive); }
 .invitation .rsvp-form__consent { padding: 1rem; border: 1px solid var(--iv-line); background: #f6f6ed; }
 .invitation .rsvp-form__choices input, .invitation .rsvp-form__consent input { accent-color: var(--iv-olive); }
 .invitation .rsvp-form__submit { justify-self: stretch; min-height: 56px; }
 .invitation .rsvp__note { max-width: 38rem; margin: 0 auto; }
+.invitation .rsvp__preview-note { margin: 0 0 1.2rem; padding: 1rem 1.2rem; border: 1px solid var(--iv-line); background: var(--iv-olive-soft); color: var(--iv-ink); text-align: center; }
+@media (max-width: 620px) {
+  .invitation .rsvp__olive { width: 16rem; opacity: .22; }
+  .invitation .rsvp__olive--left { top: 0; left: -9rem; }
+  .invitation .rsvp__olive--right { right: -9rem; bottom: 0; }
+  .invitation .rsvp-form__menu-heading { gap: .65rem; }
+  .invitation .rsvp-form__menu-icon { width: 3.4rem; height: 3.4rem; }
+}
 .invitation .form-message { border-radius: .2rem; }
 .invitation .form-message--success { border-color: #89a18a; background: #ecf4e9; color: #294b30; }
 .form-message--success p { margin-bottom: .75rem; }

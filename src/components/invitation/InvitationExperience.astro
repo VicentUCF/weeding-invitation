@@ -36,7 +36,9 @@ const c = t(locale);
     </div>
     <div class="journey-name-handoff" data-journey-name-handoff aria-hidden="true">{wedding.ceremony.venue}</div>
     <Timeline locale={locale} />
-    {invitation && rsvpSettings && <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />}
+    {invitation && rsvpSettings
+      ? <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />
+      : preview && <RSVPForm preview locale={locale} />}
     <footer class="footer">
       <p>{c.farewell}</p>
       <strong>{wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}</strong>

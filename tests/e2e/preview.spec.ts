@@ -1,5 +1,25 @@
 import { test, expect } from '@playwright/test';
 
+test('shows an interactive RSVP preview on the public invitation', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Entra sense animació' }).click();
+  const rsvp = page.locator('#confirmar');
+  await expect(rsvp.getByRole('heading', { name: 'Ens acompanyes?' })).toBeVisible();
+  await expect(rsvp.getByText('Esta és una vista prèvia.')).toBeVisible();
+  await expect(rsvp.locator('.rsvp-form__food')).toBeHidden();
+  await rsvp.getByLabel('Sí, vindré').check();
+  await expect(rsvp.locator('.rsvp-form__food')).toBeVisible();
+  await expect(rsvp.getByRole('heading', { name: 'Detalls per al menú' })).toBeVisible();
+  await expect(rsvp.locator('.rsvp-form__menu-icon img')).toHaveAttribute('src', '/images/menu-icon-refined.png');
+  await expect.poll(() => rsvp.locator('.rsvp-form__menu-icon img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await rsvp.getByLabel('Sí', { exact: true }).check();
+  await expect(rsvp.locator('.rsvp-form__allergy-detail')).toBeVisible();
+  await rsvp.getByLabel('No podré vindre').check();
+  await expect(rsvp.locator('.rsvp-form__food')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(rsvp.getByRole('button', { name: 'Guarda les respostes' })).toHaveCount(0);
+});
+
 test('opens the sealed envelope and reveals the configured event', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Obri la invitació de Jose i Anas' })).toBeVisible();
