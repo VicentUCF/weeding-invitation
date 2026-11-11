@@ -249,6 +249,9 @@
 .invitation .rsvp-form__transport .rsvp-form__question { margin: 0 0 .6rem !important; font-size: 1rem; }
 .invitation .rsvp-form__choices--bus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
 .invitation .rsvp-form__choices--bus label { min-width: 0; min-height: 44px; padding: .55rem .75rem; }
+.invitation .rsvp-form__bus-route { margin-top: 1rem; }
+.invitation .rsvp-form__choices--bus-route { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.invitation .rsvp-form__choices--bus-route label { min-width: 0; min-height: 44px; padding: .55rem .75rem; }
 .invitation .rsvp-form__food textarea { border-color: #abb5a5; border-radius: .2rem; background: #fff; }
 .invitation .rsvp-form__food textarea:focus-visible { outline-color: var(--iv-olive); }
 .invitation .rsvp-form__consent { padding: 1rem; border: 1px solid var(--iv-line); background: #f6f6ed; }
@@ -313,6 +316,7 @@
   .invitation .rsvp-form__choices label { flex-basis: 100%; }
   .invitation .rsvp-form__choices--small label { flex-basis: calc(50% - .4rem); }
   .invitation .rsvp-form__choices--bus { grid-template-columns: 1fr; }
+  .invitation .rsvp-form__choices--bus-route { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .invitation-open .hero__paper[data-paper='full'] [data-reveal] { animation: none; }

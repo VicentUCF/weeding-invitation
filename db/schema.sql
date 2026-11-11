@@ -53,17 +53,20 @@ create table if not exists wedding.guests (
   dietary_notes varchar(1000) not null default '',
   observations varchar(1000) not null default '',
   bus_seat boolean,
+  bus_route varchar(8) check (bus_route in ('outbound', 'return', 'both')),
   food_data_consent boolean not null default false,
   responded_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (response = 'yes' or (allergies = '' and dietary_notes = '' and observations = '' and food_data_consent = false)),
   check (response = 'yes' or bus_seat is null),
+  check (bus_route is null or (response = 'yes' and bus_seat = true)),
   check (allergies = '' and dietary_notes = '' or food_data_consent)
 );
 alter table wedding.guests add column if not exists sort_order integer not null default 0;
 alter table wedding.guests add column if not exists observations varchar(1000) not null default '';
 alter table wedding.guests add column if not exists bus_seat boolean;
+alter table wedding.guests add column if not exists bus_route varchar(8);
 do $$ begin
   if not exists (select 1 from pg_constraint where conrelid = 'wedding.guests'::regclass and conname = 'guests_observations_attending_check') then
     alter table wedding.guests add constraint guests_observations_attending_check check (response = 'yes' or observations = '');
@@ -72,6 +75,11 @@ end $$;
 do $$ begin
   if not exists (select 1 from pg_constraint where conrelid = 'wedding.guests'::regclass and conname = 'guests_bus_attending_check') then
     alter table wedding.guests add constraint guests_bus_attending_check check (response = 'yes' or bus_seat is null);
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conrelid = 'wedding.guests'::regclass and conname = 'guests_bus_route_check') then
+    alter table wedding.guests add constraint guests_bus_route_check check (bus_route is null or (response = 'yes' and bus_seat = true and bus_route in ('outbound', 'return', 'both')));
   end if;
 end $$;
 create index if not exists guests_invitation_idx on wedding.guests (invitation_id);

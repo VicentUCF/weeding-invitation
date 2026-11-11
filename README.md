@@ -21,7 +21,7 @@ Requiere Node.js 24.15.0 (Volta) o 22.23.4 o superior y PostgreSQL. En este equi
 volta run --node 24.15.0 npm install
 ```
 
-1. Crea una base de datos PostgreSQL **exclusiva para la boda** y aplica `db/schema.sql` con un usuario propietario de la base. Vuelve a aplicarlo si ya existía la base: añade los grupos, idiomas, mensajes ucranianos, observaciones y reservas de autobús sin borrar las invitaciones anteriores (quedan en español). Aplica el esquema antes de desplegar cambios que lean la respuesta del autobús.
+1. Crea una base de datos PostgreSQL **exclusiva para la boda** y aplica `db/schema.sql` con un usuario propietario de la base. Vuelve a aplicarlo si ya existía la base: añade los grupos, idiomas, mensajes ucranianos, observaciones y reservas de autobús sin borrar las invitaciones anteriores (quedan en español). Aplica el esquema antes de desplegar cambios que lean la respuesta y el trayecto del autobús. Las respuestas anteriores con plaza reservada conservan el trayecto sin especificar hasta que el invitado lo indique.
 
    ```sh
    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql

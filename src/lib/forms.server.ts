@@ -1,4 +1,4 @@
-import type { ResponseStatus } from './invitations.server';
+import type { BusRoute, ResponseStatus } from './invitations.server';
 import { parseLocale, t, type Locale } from './i18n';
 
 const field = (data: FormData, name: string) => String(data.get(name) ?? '').trim();
@@ -38,9 +38,12 @@ export function guestInput(data: FormData) {
   const observations = optional(field(data, 'observations'), 1000, 'Observacions');
   const bus = field(data, 'bus');
   if (bus && bus !== 'yes' && bus !== 'no') throw new Error('Selecciona una resposta vàlida per a l’autobús.');
+  const busRoute = field(data, 'busRoute');
+  if (busRoute && !['outbound', 'return', 'both'].includes(busRoute)) throw new Error('Selecciona un trajecte vàlid per a l’autobús.');
+  if (response === 'yes' && bus === 'yes' && !busRoute) throw new Error('Indica si necessites autobús d’anada, de tornada o per als dos trajectes.');
   const consent = field(data, 'consent') === 'yes';
   if (response === 'yes' && (allergies || dietaryNotes) && !consent) throw new Error('Confirma que tens permís per a registrar la informació alimentària.');
-  return { name, response, allergies, dietaryNotes, observations, busSeat: response === 'yes' && bus ? bus === 'yes' : null, consent };
+  return { name, response, allergies, dietaryNotes, observations, busSeat: response === 'yes' && bus ? bus === 'yes' : null, busRoute: response === 'yes' && bus === 'yes' ? (busRoute || null) as BusRoute | null : null, consent };
 }
 export function rsvpInput(data: FormData, guests: { id: string }[], locale: Locale = 'es') {
   const c = t(locale);
@@ -53,8 +56,10 @@ export function rsvpInput(data: FormData, guests: { id: string }[], locale: Loca
     const dietaryNotes = response === 'yes' ? optional(field(data, `dietary_${id}`), 1000, c.dietaryRequired, locale) : '';
     const bus = response === 'yes' ? field(data, `bus_${id}`) : '';
     if (response === 'yes' && bus !== 'yes' && bus !== 'no') throw new Error(c.selectBus);
+    const busRoute = bus === 'yes' ? field(data, `bus_route_${id}`) : '';
+    if (bus === 'yes' && !['outbound', 'return', 'both'].includes(busRoute)) throw new Error(c.selectBusRoute);
     const consent = response === 'yes' && field(data, `consent_${id}`) === 'yes';
     if ((allergies || dietaryNotes) && !consent) throw new Error(c.consentRequired);
-    return { id, response: response as 'yes' | 'no', allergies, dietaryNotes, busSeat: bus ? bus === 'yes' : null, consent };
+    return { id, response: response as 'yes' | 'no', allergies, dietaryNotes, busSeat: bus ? bus === 'yes' : null, busRoute: busRoute ? busRoute as BusRoute : null, consent };
   });
 }

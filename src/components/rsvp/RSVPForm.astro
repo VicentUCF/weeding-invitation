@@ -5,7 +5,7 @@ interface Props { invitation?: Invitation; settings?: Settings; error?: string; 
 const { invitation, settings, error = '', saved = false, submitted, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
 const open = preview || (settings ? canRespond(settings) : false);
-const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', bus_seat: null, food_data_consent: false }] : []);
+const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', bus_seat: null, bus_route: null, food_data_consent: false }] : []);
 const value = (name: string, fallback = '') => submitted ? String(submitted.get(name) ?? '') : fallback;
 ---
 <section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
@@ -60,6 +60,14 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
               <label><input type="radio" name={`bus_${guest.id}`} value="yes" checked={value(`bus_${guest.id}`, guest.bus_seat === true ? 'yes' : '') === 'yes'} /><span>{c.busYes}</span></label>
               <label><input type="radio" name={`bus_${guest.id}`} value="no" checked={value(`bus_${guest.id}`, guest.bus_seat === false ? 'no' : '') === 'no'} /><span>{c.busNo}</span></label>
             </div>
+            <div class="rsvp-form__bus-route">
+              <p class="rsvp-form__question">{c.busRouteQuestion}</p>
+              <div class="rsvp-form__choices rsvp-form__choices--bus-route" role="group" aria-label={`${c.busRouteQuestion} ${guest.name}`}>
+                <label><input type="radio" name={`bus_route_${guest.id}`} value="outbound" checked={value(`bus_route_${guest.id}`, guest.bus_route ?? '') === 'outbound'} /><span>{c.busOutbound}</span></label>
+                <label><input type="radio" name={`bus_route_${guest.id}`} value="return" checked={value(`bus_route_${guest.id}`, guest.bus_route ?? '') === 'return'} /><span>{c.busReturn}</span></label>
+                <label><input type="radio" name={`bus_route_${guest.id}`} value="both" checked={value(`bus_route_${guest.id}`, guest.bus_route ?? '') === 'both'} /><span>{c.busBoth}</span></label>
+              </div>
+            </div>
           </div>
         </fieldset>
       ))}
@@ -78,7 +86,10 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       const allergy = fieldset.querySelector<HTMLInputElement>('input[name^="allergy_answer_"]:checked')?.value === 'yes';
       const food = fieldset.querySelector<HTMLElement>('.rsvp-form__food');
       const transport = fieldset.querySelector<HTMLElement>('.rsvp-form__transport');
-      const busInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="bus_"]');
+      const busInputs = fieldset.querySelectorAll<HTMLInputElement>('.rsvp-form__choices--bus input');
+      const busYes = fieldset.querySelector<HTMLInputElement>('.rsvp-form__choices--bus input[value="yes"]')?.checked === true;
+      const busRoute = fieldset.querySelector<HTMLElement>('.rsvp-form__bus-route');
+      const busRouteInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="bus_route_"]');
       const allergyDetail = fieldset.querySelector<HTMLElement>('.rsvp-form__allergy-detail');
       const dietary = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="dietary_"]');
       const consent = fieldset.querySelector<HTMLElement>('.rsvp-form__consent');
@@ -88,6 +99,8 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       if (food) food.hidden = !attending;
       if (transport) transport.hidden = !attending;
       busInputs.forEach((input) => { input.required = attending; });
+      if (busRoute) busRoute.hidden = !attending || !busYes;
+      busRouteInputs.forEach((input) => { input.required = attending && busYes; });
       if (allergyDetail) allergyDetail.hidden = !allergy;
       allergyInputs.forEach((input) => { input.required = attending; });
       if (detail) detail.required = attending && allergy;

@@ -13,6 +13,17 @@ test('shows an interactive RSVP preview on the public invitation', async ({ page
   await expect(rsvp.getByRole('heading', { name: 'Transport' })).toBeVisible();
   await expect(rsvp.locator('.rsvp-form__transport-icon img')).toHaveAttribute('src', '/images/bus-icon-refined.png');
   await expect(rsvp.getByLabel('Sí, vull plaça')).toBeVisible();
+  const route = rsvp.locator('.rsvp-form__bus-route');
+  await expect(route).toBeHidden();
+  await rsvp.getByLabel('Sí, vull plaça').check();
+  await expect(route).toBeVisible();
+  await expect(route.getByLabel('Només anada')).toHaveAttribute('required', '');
+  await expect(route.getByLabel('Només tornada')).toBeVisible();
+  await expect(route.getByLabel('Anada i tornada')).toBeVisible();
+  await route.getByLabel('Només tornada').check();
+  await rsvp.getByLabel('No, gràcies').check();
+  await expect(route).toBeHidden();
+  await expect(route.getByLabel('Només tornada')).not.toHaveAttribute('required', '');
   const busColumns = await rsvp.locator('.rsvp-form__choices--bus').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
   expect(busColumns).toBe(page.viewportSize()!.width <= 620 ? 1 : 2);
   await expect(rsvp.getByText('Vols comentar-nos alguna altra cosa?')).toHaveCount(0);
@@ -24,6 +35,7 @@ test('shows an interactive RSVP preview on the public invitation', async ({ page
   await rsvp.getByLabel('No podré vindre').check();
   await expect(rsvp.locator('.rsvp-form__food')).toBeHidden();
   await expect(rsvp.locator('.rsvp-form__transport')).toBeHidden();
+  await expect(route).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(rsvp.getByRole('button', { name: 'Guarda les respostes' })).toHaveCount(0);
 });
