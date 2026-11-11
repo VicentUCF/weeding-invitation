@@ -34,7 +34,6 @@ const c = t(locale);
     <div class="journey-art-handoff" data-journey-art-handoff aria-hidden="true">
       <img src="/images/galim-aerial-sheet.webp" alt="" width="1383" height="922" decoding="async" />
     </div>
-    <div class="journey-name-handoff" data-journey-name-handoff aria-hidden="true">{wedding.ceremony.venue}</div>
     <Timeline locale={locale} />
     {invitation && rsvpSettings
       ? <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />
@@ -267,13 +266,11 @@ const c = t(locale);
     const roadLine = journey?.querySelector<SVGSVGElement>('.journey__roadline');
     const car = journey?.querySelector<HTMLElement>('[data-journey-car]');
     const venuePreview = journey?.querySelector<HTMLElement>('[data-journey-preview]');
-    const venuePreviewName = journey?.querySelector<HTMLElement>('[data-journey-name]');
+    const venuePreviewImage = venuePreview?.querySelector<HTMLImageElement>('img');
     const venueCard = document.querySelector<HTMLElement>('[data-journey-card]');
     const venueHeading = document.querySelector<HTMLElement>('[data-journey-heading]');
     const venueArt = venueCard?.querySelector<HTMLElement>('.venue-card__art--aerial');
-    const venueName = venueCard?.querySelector<HTMLElement>('h3');
     const handoff = document.querySelector<HTMLElement>('[data-journey-art-handoff]');
-    const nameHandoff = document.querySelector<HTMLElement>('[data-journey-name-handoff]');
     if (journey && routePath && routeMask && routeStartMask && routeEndMask && roadLine && car) {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       const steps = [...journey.querySelectorAll<HTMLElement>('[data-journey-step]')];
@@ -301,10 +298,8 @@ const c = t(locale);
           car.style.removeProperty('top');
           car.style.removeProperty('transform');
           html.classList.remove('journey-card-motion');
-          venuePreview?.style.removeProperty('opacity');
-          venuePreviewName?.style.removeProperty('opacity');
+          venuePreviewImage?.style.removeProperty('opacity');
           handoff?.style.removeProperty('opacity');
-          nameHandoff?.style.removeProperty('opacity');
           return;
         }
         const bounds = roadLine.getBoundingClientRect();
@@ -324,7 +319,7 @@ const c = t(locale);
         car.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
         car.style.opacity = progress > .005 ? '1' : '0';
 
-        if (venuePreview && venuePreviewName && venueCard && venueArt && venueName && handoff && nameHandoff) {
+        if (venuePreview && venuePreviewImage && venueCard && venueArt && handoff) {
           html.classList.add('journey-card-motion');
           const sourceBounds = venuePreview.getBoundingClientRect();
           const documentPosition = (element: HTMLElement) => {
@@ -338,35 +333,23 @@ const c = t(locale);
           };
           const sourcePosition = documentPosition(venuePreview);
           const targetPosition = documentPosition(venueArt);
-          const sourceNamePosition = documentPosition(venuePreviewName);
-          const targetNamePosition = documentPosition(venueName);
-          const sourceNameBounds = venuePreviewName.getBoundingClientRect();
           const start = sourcePosition.top + venuePreview.offsetHeight * .15 - window.innerHeight * .72;
           const headingTop = venueHeading ? documentPosition(venueHeading).top : Number.POSITIVE_INFINITY;
           const finish = Math.min(targetPosition.top - window.innerHeight * .36, headingTop - 24);
           const handoffProgress = Math.max(0, Math.min(1, (window.scrollY - start) / Math.max(1, finish - start)));
           const moveProgress = Math.max(0, Math.min(1, (handoffProgress - .06) / .94));
-          const nameProgress = Math.max(0, Math.min(1, (handoffProgress - .06) / .75));
           const blend = (from: number, to: number) => from + (to - from) * moveProgress;
-          const blendName = (from: number, to: number) => from + (to - from) * nameProgress;
-          const cardVisible = handoffProgress >= .92 || venueCard.contains(document.activeElement);
+          const cardVisible = handoffProgress >= .68 || venueCard.contains(document.activeElement);
           venueCard.classList.toggle('is-journey-visible', cardVisible);
           venueHeading?.classList.toggle('is-journey-visible', cardVisible);
           const artArrived = handoffProgress >= .99 || venueCard.contains(document.activeElement);
           venueCard.classList.toggle('is-journey-arrived', artArrived);
           handoff.classList.toggle('is-arrived', artArrived);
-          nameHandoff.classList.toggle('is-arrived', artArrived);
-          venuePreview.style.opacity = String(1 - Math.min(1, handoffProgress / .06));
-          venuePreviewName.style.opacity = String(1 - Math.min(1, handoffProgress / .06));
+          venuePreviewImage.style.opacity = String(1 - Math.min(1, handoffProgress / .06));
           handoff.style.opacity = artArrived ? '0' : String(Math.min(1, handoffProgress / .06));
-          nameHandoff.style.opacity = artArrived ? '0' : String(Math.min(1, handoffProgress / .06));
           handoff.style.width = `${blend(sourceBounds.width, venueArt.offsetWidth)}px`;
           handoff.style.height = `${blend(sourceBounds.height, venueArt.offsetHeight)}px`;
           handoff.style.transform = `translate3d(${blend(sourcePosition.left, targetPosition.left) - window.scrollX}px, ${blend(sourcePosition.top, targetPosition.top) - window.scrollY}px, 0)`;
-          nameHandoff.style.width = `${blendName(sourceNameBounds.width, venueName.offsetWidth)}px`;
-          nameHandoff.style.height = `${blendName(sourceNameBounds.height, venueName.offsetHeight)}px`;
-          nameHandoff.style.fontSize = `${blendName(parseFloat(getComputedStyle(venuePreviewName).fontSize), parseFloat(getComputedStyle(venueName).fontSize))}px`;
-          nameHandoff.style.transform = `translate3d(${blendName(sourceNamePosition.left, targetNamePosition.left) - window.scrollX}px, ${blendName(sourceNamePosition.top, targetNamePosition.top) - window.scrollY}px, 0)`;
         }
       };
       const requestJourneyUpdate = () => {

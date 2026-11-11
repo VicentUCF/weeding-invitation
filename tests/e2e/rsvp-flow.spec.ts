@@ -40,7 +40,7 @@ test('the couple creates a link, guests respond, and the couple can control acce
   await guestFields.nth(0).getByLabel(/Explica les al·lèrgies/).fill('Frutos secos; evitar trazas');
   await guestFields.nth(0).getByLabel('Altres necessitats alimentàries (opcional)').fill('Sin lactosa');
   await guestFields.nth(0).getByLabel(/Autoritze Jose i Anas/).check();
-  await guestFields.nth(0).getByLabel(/Vols comentar-nos alguna altra cosa/).fill('Arribaré un poc més tard');
+  await guestFields.nth(0).getByLabel('Sí, vull plaça').check();
   await guestFields.nth(1).getByLabel('No podré vindre').check();
   await expect(guestFields.nth(1).locator('.rsvp-form__food')).toBeHidden();
   await page.getByRole('button', { name: 'Guarda les respostes' }).click();
@@ -50,12 +50,13 @@ test('the couple creates a link, guests respond, and the couple can control acce
   await expect(page.getByRole('heading', { name: `${first} y ${second}` })).toBeVisible();
   await page.locator('.admin-invitation').filter({ hasText: `${first} y ${second}` }).getByRole('link', { name: 'Gestiona' }).click();
   await expect(page.getByLabel('Al·lèrgies i intoleràncies').first()).toHaveValue('Frutos secos; evitar trazas');
-  await expect(page.getByLabel('Altres observacions').first()).toHaveValue('Arribaré un poc més tard');
+  await expect(page.getByLabel('Plaça a l’autobús').first()).toHaveValue('yes');
   const csv = await page.request.get('/admin/export.csv');
   expect(csv.ok()).toBeTruthy();
   const csvText = await csv.text();
   expect(csvText).toContain('Frutos secos; evitar trazas');
-  expect(csvText).toContain('Arribaré un poc més tard');
+  expect(csvText).toContain('Plaça a l’autobús');
+  expect(csvText).toContain('"Sí"');
 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Renova l’enllaç' }).click();

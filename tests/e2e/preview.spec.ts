@@ -9,6 +9,13 @@ test('shows an interactive RSVP preview on the public invitation', async ({ page
   await expect(rsvp.locator('.rsvp-form__food')).toBeHidden();
   await rsvp.getByLabel('Sí, vindré').check();
   await expect(rsvp.locator('.rsvp-form__food')).toBeVisible();
+  await expect(rsvp.getByText('Necessitaràs plaça a l’autobús?')).toBeVisible();
+  await expect(rsvp.getByRole('heading', { name: 'Transport' })).toBeVisible();
+  await expect(rsvp.locator('.rsvp-form__transport-icon img')).toHaveAttribute('src', '/images/bus-icon-refined.png');
+  await expect(rsvp.getByLabel('Sí, vull plaça')).toBeVisible();
+  const busColumns = await rsvp.locator('.rsvp-form__choices--bus').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
+  expect(busColumns).toBe(page.viewportSize()!.width <= 620 ? 1 : 2);
+  await expect(rsvp.getByText('Vols comentar-nos alguna altra cosa?')).toHaveCount(0);
   await expect(rsvp.getByRole('heading', { name: 'Detalls per al menú' })).toBeVisible();
   await expect(rsvp.locator('.rsvp-form__menu-icon img')).toHaveAttribute('src', '/images/menu-icon-refined.png');
   await expect.poll(() => rsvp.locator('.rsvp-form__menu-icon img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
@@ -16,6 +23,7 @@ test('shows an interactive RSVP preview on the public invitation', async ({ page
   await expect(rsvp.locator('.rsvp-form__allergy-detail')).toBeVisible();
   await rsvp.getByLabel('No podré vindre').check();
   await expect(rsvp.locator('.rsvp-form__food')).toBeHidden();
+  await expect(rsvp.locator('.rsvp-form__transport')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(rsvp.getByRole('button', { name: 'Guarda les respostes' })).toHaveCount(0);
 });
@@ -175,12 +183,20 @@ test('carries the car past L’Olleria and the venue illustration into the locat
   }, progress);
 
   await scrollThroughHandoff(.5);
+  await expect(page.locator('.journey__venue-caption')).toContainText('Ací comença la celebració');
+  await expect(page.locator('[data-journey-preview] img')).toHaveAttribute('src', '/images/galim-aerial-sheet.webp');
+  await expect(page.locator('[data-journey-art-handoff] img')).toHaveAttribute('src', '/images/galim-aerial-sheet.webp');
   await expect(page.locator('[data-journey-art-handoff]')).toHaveCSS('opacity', '1');
-  await expect(page.locator('[data-journey-name-handoff]')).toHaveText('L’Alqueria de Galim');
-  await expect(page.locator('[data-journey-name-handoff]')).toHaveCSS('opacity', '1');
-  await expect(page.locator('[data-journey-preview]')).toHaveCSS('opacity', '0');
-  await expect(page.locator('[data-journey-name]')).toHaveCSS('opacity', '0');
+  await expect(page.locator('.journey__venue-name')).toHaveText('Jose i Anas t’esperen');
+  await expect(page.locator('.journey__venue-name')).toBeVisible();
+  await expect(page.locator('[data-journey-preview] img')).toHaveCSS('opacity', '0');
   await expect(page.locator('[data-journey-heading]')).toHaveCSS('opacity', '0');
+
+  await scrollThroughHandoff(.75);
+  await expect(page.locator('[data-journey-card]')).toHaveClass(/is-journey-visible/);
+  await expect(page.locator('[data-journey-art-handoff]')).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-journey-card] h3')).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-journey-card] .venue-card__art--facade')).toHaveCSS('opacity', '0');
 
   await scrollThroughHandoff(1);
   await expect(page.locator('[data-journey-card]')).toHaveClass(/is-journey-visible/);
@@ -189,9 +205,9 @@ test('carries the car past L’Olleria and the venue illustration into the locat
   expect(headingBounds.y).toBeGreaterThanOrEqual(0);
   expect(headingBounds.y + headingBounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   await expect(page.locator('.venue-card__art--aerial')).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-journey-card] .venue-card__art--facade')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-journey-card] h3')).toHaveCSS('opacity', '1');
   await expect.poll(() => page.locator('[data-journey-art-handoff]').evaluate((node) => Number(getComputedStyle(node).opacity))).toBeLessThan(.05);
-  await expect.poll(() => page.locator('[data-journey-name-handoff]').evaluate((node) => Number(getComputedStyle(node).opacity))).toBeLessThan(.05);
   await expect.poll(() => page.locator('[data-journey-card]').evaluate((node) => getComputedStyle(node, '::before').backgroundImage)).toContain('venue-map-watercolor.webp');
   await expect(page.locator('[data-journey-card] .venue-card__map')).toHaveAttribute('href', /maps\.google\.com\/\?q=L%27Alqueria/);
 });
@@ -231,9 +247,9 @@ test('respects reduced motion', async ({ page }) => {
   await expect(page.locator('[data-route-start-mask]')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-route-end-mask]')).toHaveCSS('opacity', '1');
   await expect(page.locator('[data-journey-art-handoff]')).toHaveCSS('display', 'none');
-  await expect(page.locator('[data-journey-name-handoff]')).toHaveCSS('display', 'none');
+  await expect(page.locator('[data-journey-name-handoff]')).toHaveCount(0);
   await expect(page.locator('[data-journey-heading]')).toHaveCSS('opacity', '1');
-  await expect(page.locator('[data-journey-name]')).toContainText('L’Alqueria de Galim');
+  await expect(page.locator('.journey__venue-name')).toContainText('Jose i Anas t’esperen');
 });
 
 test('returns the finished card from above after the letter leaves the screen', async ({ page }, testInfo) => {

@@ -73,7 +73,11 @@ const road = 'M250 0 C250 120 100 125 110 260 S390 380 375 510 S125 650 125 760 
         <div class="journey__venue-preview" data-journey-preview aria-hidden="true">
           <img src="/images/galim-aerial-sheet.webp" alt="" width="1383" height="922" loading="lazy" decoding="async" />
         </div>
-        <p class="journey__venue-name" data-journey-name>{wedding.ceremony.venue}</p>
+        <div class="journey__venue-copy">
+          <p class="journey__venue-kicker">{c.journeyArrivalKicker}</p>
+          <p class="journey__venue-name">{wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')} {c.journeyWaiting}</p>
+          <p class="journey__venue-caption">{c.journeyCaption}</p>
+        </div>
       </div>
     </div>
   </div>

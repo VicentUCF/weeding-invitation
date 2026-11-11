@@ -5,14 +5,14 @@ interface Props { invitation?: Invitation; settings?: Settings; error?: string; 
 const { invitation, settings, error = '', saved = false, submitted, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
 const open = preview || (settings ? canRespond(settings) : false);
-const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', observations: '', food_data_consent: false }] : []);
+const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', bus_seat: null, food_data_consent: false }] : []);
 const value = (name: string, fallback = '') => submitted ? String(submitted.get(name) ?? '') : fallback;
 ---
 <section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
   <img class="rsvp__olive rsvp__olive--left" src="/images/olive-corner.webp" alt="" width="1200" height="800" loading="lazy" decoding="async" aria-hidden="true" />
   <img class="rsvp__olive rsvp__olive--right" src="/images/olive-corner.webp" alt="" width="1200" height="800" loading="lazy" decoding="async" aria-hidden="true" />
   <div class="rsvp__card rsvp__card--form" data-scroll-reveal>
-    <img class="rsvp__seal" src="/images/seal.webp" alt="" width="320" height="312" loading="lazy" />
+    <img class="rsvp__seal" src="/images/seal-transparent.png" alt="" width="320" height="312" loading="lazy" />
     <p class="eyebrow">{c.confirm}</p>
     <h2 id="rsvp-title">{c.joinUs}</h2>
     <div class="rsvp__divider" aria-hidden="true"><span></span><svg viewBox="0 0 74 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 14h22m26 0h22M31 14c3-5 9-5 12 0-3 5-9 5-12 0Z" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/><path d="M37 9c1-3 3-5 6-6M37 19c-1 3-3 5-6 6" stroke="currentColor" stroke-width="1.15" stroke-linecap="round"/></svg><span></span></div>
@@ -47,8 +47,19 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
             <label for={`dietary_${guest.id}`}>{c.dietaryLabel}</label>
             <textarea id={`dietary_${guest.id}`} name={`dietary_${guest.id}`} rows="2" maxlength="1000" placeholder={c.dietaryPlaceholder}>{value(`dietary_${guest.id}`, guest.dietary_notes)}</textarea>
             <label class="rsvp-form__consent"><input type="checkbox" name={`consent_${guest.id}`} value="yes" checked={submitted ? submitted.get(`consent_${guest.id}`) === 'yes' : guest.food_data_consent} /><span>{c.consent}</span></label>
-            <label class="rsvp-form__observations-label" for={`observations_${guest.id}`}>{c.observationsLabel}</label>
-            <textarea id={`observations_${guest.id}`} name={`observations_${guest.id}`} rows="3" maxlength="1000" placeholder={c.observationsPlaceholder}>{value(`observations_${guest.id}`, guest.observations)}</textarea>
+          </div>
+          <div class="rsvp-form__transport">
+            <div class="rsvp-form__transport-heading">
+              <span class="rsvp-form__transport-icon" aria-hidden="true">
+                <img src="/images/bus-icon-refined.png" alt="" width="1254" height="1254" loading="lazy" decoding="async" />
+              </span>
+              <div><p class="rsvp-form__menu-kicker">{c.busKicker}</p><h3>{c.busTitle}</h3></div>
+            </div>
+            <p class="rsvp-form__question">{c.busQuestion}</p>
+            <div class="rsvp-form__choices rsvp-form__choices--bus" role="group" aria-label={`${c.busQuestion} ${guest.name}`}>
+              <label><input type="radio" name={`bus_${guest.id}`} value="yes" checked={value(`bus_${guest.id}`, guest.bus_seat === true ? 'yes' : '') === 'yes'} /><span>{c.busYes}</span></label>
+              <label><input type="radio" name={`bus_${guest.id}`} value="no" checked={value(`bus_${guest.id}`, guest.bus_seat === false ? 'no' : '') === 'no'} /><span>{c.busNo}</span></label>
+            </div>
           </div>
         </fieldset>
       ))}
@@ -61,10 +72,13 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
 <script>
   document.querySelectorAll<HTMLFormElement>('[data-rsvp-preview]').forEach((form) => form.addEventListener('submit', (event) => event.preventDefault()));
   document.querySelectorAll<HTMLFieldSetElement>('[data-rsvp-guest]').forEach((fieldset) => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const sync = () => {
       const attending = fieldset.querySelector<HTMLInputElement>('input[name^="response_"]:checked')?.value === 'yes';
       const allergy = fieldset.querySelector<HTMLInputElement>('input[name^="allergy_answer_"]:checked')?.value === 'yes';
       const food = fieldset.querySelector<HTMLElement>('.rsvp-form__food');
+      const transport = fieldset.querySelector<HTMLElement>('.rsvp-form__transport');
+      const busInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="bus_"]');
       const allergyDetail = fieldset.querySelector<HTMLElement>('.rsvp-form__allergy-detail');
       const dietary = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="dietary_"]');
       const consent = fieldset.querySelector<HTMLElement>('.rsvp-form__consent');
@@ -72,14 +86,37 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       const allergyInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="allergy_answer_"]');
       const detail = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="allergies_"]');
       if (food) food.hidden = !attending;
+      if (transport) transport.hidden = !attending;
+      busInputs.forEach((input) => { input.required = attending; });
       if (allergyDetail) allergyDetail.hidden = !allergy;
       allergyInputs.forEach((input) => { input.required = attending; });
       if (detail) detail.required = attending && allergy;
       if (consent) consent.hidden = !(attending && ((allergy && !!detail?.value.trim()) || !!dietary?.value.trim()));
       if (consentInput) consentInput.required = attending && !consent?.hidden;
     };
-    fieldset.addEventListener('change', sync);
-    fieldset.addEventListener('input', sync);
+    fieldset.addEventListener('change', (event) => {
+      const attendanceChanged = event.target instanceof HTMLInputElement && event.target.name.startsWith('response_');
+      const before = attendanceChanged ? fieldset.getBoundingClientRect().height : 0;
+      if (attendanceChanged) fieldset.getAnimations().forEach((animation) => animation.cancel());
+      sync();
+      if (!attendanceChanged || reduceMotion.matches) return;
+      const after = fieldset.getBoundingClientRect().height;
+      if (Math.abs(after - before) < 2) return;
+      fieldset.style.overflow = 'hidden';
+      const animation = fieldset.animate([{ height: `${before}px` }, { height: `${after}px` }], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+      const finish = () => { fieldset.style.overflow = ''; };
+      animation.onfinish = finish;
+      animation.oncancel = finish;
+      if (after > before) {
+        fieldset.querySelectorAll<HTMLElement>('.rsvp-form__food, .rsvp-form__transport').forEach((section) => {
+          section.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, easing: 'ease-out' });
+        });
+      }
+    });
+    fieldset.addEventListener('input', (event) => {
+      if (event.target instanceof HTMLInputElement && event.target.name.startsWith('response_')) return;
+      sync();
+    });
     sync();
   });
 </script>
