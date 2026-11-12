@@ -1,0 +1,13 @@
+---
+interface Props { active: 'resum' | 'invitacions' | 'grups' | 'ajustos' }
+const { active } = Astro.props;
+const sections = [
+  { id: 'resum', label: 'Resum', href: '/admin/' },
+  { id: 'invitacions', label: 'Invitacions', href: '/admin/gestion' },
+  { id: 'grups', label: 'Grups', href: '/admin/gestion?view=grups' },
+  { id: 'ajustos', label: 'Configuració', href: '/admin/gestion?view=ajustos' },
+] as const;
+---
+<nav class="admin-nav admin-nav--tabs" aria-label="Seccions de l'administració">
+  {sections.map((section) => <a href={section.href} aria-current={section.id === active ? 'page' : undefined}>{section.label}</a>)}
+</nav>

@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import AdminNav from '../../../components/admin/AdminNav.astro';
 import { requireAdmin } from '../../../lib/auth.server';
 import { sameOrigin } from '../../../lib/security.server';
 import { listInvitations, listGroups, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, deleteInvitation } from '../../../lib/invitations.server';
@@ -47,6 +48,7 @@ const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.tok
 <BaseLayout title={`${invitation.addressee} · Invitacions`} privatePage>
   <div class="admin-shell admin-shell--detail">
     <header class="admin-header"><div><a class="admin-back" href="/admin/gestion">← Torna a gestió</a><p class="eyebrow">Detall de la invitació</p><h1>{invitation.addressee}</h1></div><span class="admin-pill">{invitation.revoked_at ? 'Enllaç revocat' : invitation.sent_at ? 'Marcada com a enviada' : 'Sense enviar'}</span></header>
+    <AdminNav active="invitacions" />
     {error && <p class="form-message form-message--error" role="alert">{error}</p>}
     {Astro.url.searchParams.has('created') && <p class="form-message form-message--success" role="status">Invitació creada. Copia l’enllaç per a compartir-la.</p>}
     {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Canvis guardats.</p>}

@@ -42,6 +42,18 @@ Abre `http://localhost:4321/admin/login`. Antes de compartir invitaciones, revis
 
 **Claves y datos:** `INVITATION_LINK_KEY` cifra los tokens guardados para que el panel pueda volver a mostrar los enlaces. Guárdala de forma segura y estable: si cambia, los enlaces existentes no podrán recuperarse desde el panel. No subas `.env.local` ni la URI de PostgreSQL al repositorio. La clave publicable se usa solo para Supabase Auth en el servidor; la aplicación accede a la base mediante `DATABASE_URL`, nunca desde el navegador. La conexión SQL verifica el certificado del servidor con la CA pública de Supabase incluida en `src/lib/prod-ca-2021.crt`. La base usa el esquema privado `wedding`, sin acceso directo para los roles públicos de Supabase. El CSV contiene datos alimentarios y se descarga solo después de iniciar sesión.
 
+## Datos de prueba
+
+Para probar el panel con volumen, el script `scripts/seed-demo.mjs` añade 120 invitaciones y **300 personas ficticias**. Incluye ambos idiomas, grupos, tarjetas sin grupo, invitaciones enviadas y sin enviar, algunas revocadas, respuestas de los tres tipos, alergias, observaciones y las opciones de autobús. Conserva las invitaciones que ya existan. Los correos de prueba usan el dominio reservado `.invalid` y no se envían mensajes.
+
+```sh
+node scripts/seed-demo.mjs --plan
+node --env-file=.env.local scripts/seed-demo.mjs --seed
+node --env-file=.env.local scripts/seed-demo.mjs --verify
+```
+
+Cada registro de prueba usa un identificador fijo independiente del nombre visible. El script rechaza una segunda carga para evitar duplicados. Cuando terminen las pruebas, `node --env-file=.env.local scripts/seed-demo.mjs --cleanup` elimina únicamente esas invitaciones y sus personas; los grupos de prueba se eliminan solo si quedan vacíos. **No ejecutes la limpieza hasta que se hayan validado los datos.**
+
 ## Comprobaciones
 
 ```sh

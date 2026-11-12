@@ -1,0 +1,29 @@
+---
+interface Props {
+  page: number;
+  pageCount: number;
+  total: number;
+  start: number;
+  end: number;
+  label: string;
+  href: (page: number) => string;
+}
+const { page, pageCount, total, start, end, label, href } = Astro.props;
+const relevant = new Set([1, pageCount, page - 1, page, page + 1]);
+const numbered = [...relevant].filter((value) => value >= 1 && value <= pageCount).sort((a, b) => a - b);
+const pages: (number | null)[] = [];
+for (const number of numbered) {
+  const previous = pages.at(-1);
+  if (typeof previous === 'number' && number - previous === 2) pages.push(previous + 1);
+  else if (typeof previous === 'number' && number - previous > 2) pages.push(null);
+  pages.push(number);
+}
+---
+{total > 0 && <nav class="admin-pagination" aria-label={`Paginació de ${label}`}>
+  <p>Mostrant {start}–{end} de {total} {label}</p>
+  {pageCount > 1 && <div class="admin-pagination__links">
+    {page > 1 ? <a href={href(page - 1)} rel="prev">← Anterior</a> : <span aria-disabled="true">← Anterior</span>}
+    {pages.map((number) => number === null ? <span class="admin-pagination__ellipsis" aria-hidden="true">…</span> : <a href={href(number)} aria-current={number === page ? 'page' : undefined} aria-label={`Pàgina ${number}`}>{number}</a>)}
+    {page < pageCount ? <a href={href(page + 1)} rel="next">Següent →</a> : <span aria-disabled="true">Següent →</span>}
+  </div>}
+</nav>}
