@@ -81,7 +81,72 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
   document.querySelectorAll<HTMLFormElement>('[data-rsvp-preview]').forEach((form) => form.addEventListener('submit', (event) => event.preventDefault()));
   document.querySelectorAll<HTMLFieldSetElement>('[data-rsvp-guest]').forEach((fieldset) => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => {
+    const panelAnimations = new WeakMap<HTMLElement, Animation>();
+    const panelTargets = new WeakMap<HTMLElement, boolean>();
+    const showPanel = (panel: HTMLElement | null, visible: boolean, animate: boolean) => {
+      if (!panel) return;
+      if (panelTargets.get(panel) === visible) return;
+      panelTargets.set(panel, visible);
+
+      const previous = panelAnimations.get(panel);
+      const wasHidden = panel.hidden;
+      const currentStyle = wasHidden ? null : getComputedStyle(panel);
+      const startHeight = wasHidden ? 0 : panel.getBoundingClientRect().height;
+      const startMargin = wasHidden ? '0px' : currentStyle!.marginTop;
+      const startOpacity = wasHidden ? 0 : parseFloat(currentStyle!.opacity);
+      const startPaddingTop = wasHidden ? '0px' : currentStyle!.paddingTop;
+      const startPaddingBottom = wasHidden ? '0px' : currentStyle!.paddingBottom;
+      const startBorderTop = wasHidden ? '0px' : currentStyle!.borderTopWidth;
+      const startBorderBottom = wasHidden ? '0px' : currentStyle!.borderBottomWidth;
+      previous?.cancel();
+      panelAnimations.delete(panel);
+      panel.style.removeProperty('height');
+      panel.style.removeProperty('margin-top');
+      panel.style.removeProperty('overflow');
+      panel.style.removeProperty('padding-top');
+      panel.style.removeProperty('padding-bottom');
+      panel.style.removeProperty('border-top-width');
+      panel.style.removeProperty('border-bottom-width');
+      panel.hidden = false;
+      const endHeight = panel.getBoundingClientRect().height;
+      const endStyle = getComputedStyle(panel);
+      const endMargin = endStyle.marginTop;
+      const endPaddingTop = endStyle.paddingTop;
+      const endPaddingBottom = endStyle.paddingBottom;
+      const endBorderTop = endStyle.borderTopWidth;
+      const endBorderBottom = endStyle.borderBottomWidth;
+      panel.inert = !visible;
+
+      if (!animate || reduceMotion.matches) {
+        panel.hidden = !visible;
+        return;
+      }
+
+      panel.style.height = `${startHeight}px`;
+      panel.style.marginTop = startMargin;
+      panel.style.overflow = 'hidden';
+      panel.style.paddingTop = startPaddingTop;
+      panel.style.paddingBottom = startPaddingBottom;
+      panel.style.borderTopWidth = startBorderTop;
+      panel.style.borderBottomWidth = startBorderBottom;
+      const animation = panel.animate([
+        { height: `${startHeight}px`, marginTop: startMargin, paddingTop: startPaddingTop, paddingBottom: startPaddingBottom, borderTopWidth: startBorderTop, borderBottomWidth: startBorderBottom, opacity: startOpacity },
+        { height: `${visible ? endHeight : 0}px`, marginTop: visible ? endMargin : '0px', paddingTop: visible ? endPaddingTop : '0px', paddingBottom: visible ? endPaddingBottom : '0px', borderTopWidth: visible ? endBorderTop : '0px', borderBottomWidth: visible ? endBorderBottom : '0px', opacity: visible ? 1 : 0 },
+      ], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+      panelAnimations.set(panel, animation);
+      animation.onfinish = () => {
+        panel.hidden = !visible;
+        panel.style.removeProperty('height');
+        panel.style.removeProperty('margin-top');
+        panel.style.removeProperty('overflow');
+        panel.style.removeProperty('padding-top');
+        panel.style.removeProperty('padding-bottom');
+        panel.style.removeProperty('border-top-width');
+        panel.style.removeProperty('border-bottom-width');
+        panelAnimations.delete(panel);
+      };
+    };
+    const sync = (animate = false) => {
       const attending = fieldset.querySelector<HTMLInputElement>('input[name^="response_"]:checked')?.value === 'yes';
       const allergy = fieldset.querySelector<HTMLInputElement>('input[name^="allergy_answer_"]:checked')?.value === 'yes';
       const food = fieldset.querySelector<HTMLElement>('.rsvp-form__food');
@@ -96,39 +161,21 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       const consentInput = consent?.querySelector<HTMLInputElement>('input');
       const allergyInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="allergy_answer_"]');
       const detail = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="allergies_"]');
-      if (food) food.hidden = !attending;
-      if (transport) transport.hidden = !attending;
+      showPanel(food, attending, animate);
+      showPanel(transport, attending, animate);
       busInputs.forEach((input) => { input.required = attending; });
-      if (busRoute) busRoute.hidden = !attending || !busYes;
+      showPanel(busRoute, attending && busYes, animate);
       busRouteInputs.forEach((input) => { input.required = attending && busYes; });
-      if (allergyDetail) allergyDetail.hidden = !allergy;
+      showPanel(allergyDetail, attending && allergy, animate);
       allergyInputs.forEach((input) => { input.required = attending; });
       if (detail) detail.required = attending && allergy;
-      if (consent) consent.hidden = !(attending && ((allergy && !!detail?.value.trim()) || !!dietary?.value.trim()));
-      if (consentInput) consentInput.required = attending && !consent?.hidden;
+      const needsConsent = attending && ((allergy && !!detail?.value.trim()) || !!dietary?.value.trim());
+      showPanel(consent, needsConsent, animate);
+      if (consentInput) consentInput.required = needsConsent;
     };
-    fieldset.addEventListener('change', (event) => {
-      const attendanceChanged = event.target instanceof HTMLInputElement && event.target.name.startsWith('response_');
-      const before = attendanceChanged ? fieldset.getBoundingClientRect().height : 0;
-      if (attendanceChanged) fieldset.getAnimations().forEach((animation) => animation.cancel());
-      sync();
-      if (!attendanceChanged || reduceMotion.matches) return;
-      const after = fieldset.getBoundingClientRect().height;
-      if (Math.abs(after - before) < 2) return;
-      fieldset.style.overflow = 'hidden';
-      const animation = fieldset.animate([{ height: `${before}px` }, { height: `${after}px` }], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
-      const finish = () => { fieldset.style.overflow = ''; };
-      animation.onfinish = finish;
-      animation.oncancel = finish;
-      if (after > before) {
-        fieldset.querySelectorAll<HTMLElement>('.rsvp-form__food, .rsvp-form__transport').forEach((section) => {
-          section.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, easing: 'ease-out' });
-        });
-      }
-    });
+    fieldset.addEventListener('change', () => sync(true));
     fieldset.addEventListener('input', (event) => {
-      if (event.target instanceof HTMLInputElement && event.target.name.startsWith('response_')) return;
-      sync();
+      if (event.target instanceof HTMLTextAreaElement) sync(true);
     });
     sync();
   });

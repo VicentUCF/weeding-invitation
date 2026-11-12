@@ -211,7 +211,8 @@ const c = t(locale);
         html.classList.add('invitation-skip');
         reveal();
       }, { once: true });
-      seal.addEventListener('click', () => {
+      opening.addEventListener('click', (event) => {
+        if (opening.dataset.state === 'opening' || html.classList.contains('invitation-open') || (event.target instanceof Element && event.target.closest('[data-skip]'))) return;
         seal.disabled = true;
         skip.disabled = true;
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -240,7 +241,7 @@ const c = t(locale);
         } catch {
           reveal();
         }
-      }, { once: true });
+      });
     } else {
       html.classList.add('invitation-open');
     }

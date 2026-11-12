@@ -9,9 +9,8 @@ const venues = [wedding.ceremony, wedding.reception].filter((venue): venue is No
 ---
 <section id="detalles" class="section details" aria-labelledby="details-title">
   <div class="section__heading details__heading" data-journey-heading>
-    <p class="eyebrow">{c.bigDay}</p>
+    <p class="eyebrow">{c.whereWhen}</p>
     <h2 id="details-title">{c.placeTitle}</h2>
-    <p>{c.detailsIntro}</p>
   </div>
   <div class="details__list">
     {venues.map((venue, index) => (

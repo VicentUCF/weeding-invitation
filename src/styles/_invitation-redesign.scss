@@ -237,6 +237,7 @@
 .invitation .rsvp-form__choices label:hover { border-color: var(--iv-olive); transform: translateY(-1px); }
 .invitation .rsvp-form__choices label:has(input:checked) { border-color: var(--iv-olive); background: var(--iv-olive-soft); box-shadow: inset 0 0 0 1px var(--iv-olive), 0 3px 0 rgba(154, 132, 96, .22); }
 .invitation .rsvp-form__choices--small label { flex-grow: 0; flex-basis: 7rem; }
+.invitation .rsvp-form__choices--small { margin-bottom: 0; }
 .invitation .rsvp-form__food { margin-top: 1.4rem; padding: clamp(1rem, 3vw, 1.65rem); border: 1px solid #d7ccb2; background: url('/images/paper-grain.svg') repeat, linear-gradient(145deg, #faf7ed, #f4f0e2); background-size: 256px 256px, cover; }
 .invitation .rsvp-form__menu-heading { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid #d9d0b9; }
 .invitation .rsvp-form__menu-icon, .invitation .rsvp-form__transport-icon { display: block; width: 4.3rem; height: 4.3rem; flex: none; overflow: hidden; }

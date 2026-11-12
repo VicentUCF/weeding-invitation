@@ -47,6 +47,7 @@ h3 { font-size: 1.65rem; }
 // 5. Components
 .opening { display: none; }
 .has-js .opening { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; min-height: 100svh; padding: 2rem 1rem; overflow: auto; background: radial-gradient(circle at 50% 42%, #fffdf9 0%, #faf3ef 50%, #f1e1df 100%); text-align: center; }
+.has-js:not(.invitation-open) .opening:not([data-state='opening']) { cursor: pointer; }
 .has-js.invitation-open .opening { display: none; }
 .has-js:not(.invitation-open) body { overflow: hidden; }
 .has-js:not(.invitation-open) .invitation { visibility: hidden; pointer-events: none; }
@@ -180,7 +181,7 @@ h3 { font-size: 1.65rem; }
 .rsvp-form__choices { display: flex; flex-wrap: wrap; gap: .75rem; margin: .4rem 0 1.25rem; }
 .rsvp-form__choices label { display: flex; align-items: center; gap: .55rem; min-height: 44px; padding: .55rem .85rem; border: 1px solid $line; border-radius: 1.5rem; font: .9rem var(--font-body); cursor: pointer; }
 .rsvp-form__choices label:has(input:checked) { border-color: $rose-dark; background: #f7ebec; }
-.rsvp-form__food { padding-top: .8rem; border-top: 1px solid $line; }
+.rsvp-form__food { display: flex; flex-direction: column; padding-top: .8rem; border-top: 1px solid $line; }
 .rsvp-form__food p { margin-bottom: .35rem; }
 .rsvp-form__food > label:not(.rsvp-form__consent) { display: block; margin: 1rem 0 .4rem; font: 600 .85rem/1.4 var(--font-body); }
 .rsvp-form__food textarea { width: 100%; min-height: 5rem; padding: .8rem; border: 1px solid #bca5a7; border-radius: .35rem; background: white; color: $ink; font: .95rem/1.5 var(--font-body); resize: vertical; }

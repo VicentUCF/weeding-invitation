@@ -59,7 +59,7 @@ test('opens the sealed envelope and reveals the configured event', async ({ page
   const seal = page.locator('[data-open]');
   const initialSealTop = (await seal.boundingBox())!.y;
   await expect(page.locator('[data-flap] [data-open]')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Obri la invitació de Jose i Anas' }).click();
+  await page.locator('[data-opening]').click({ position: { x: 8, y: 8 } });
   await expect(page.locator('[data-opening]')).toHaveAttribute('data-state', 'opening');
   await expect.poll(() => page.locator('[data-flap]').evaluate((flap) => (flap as HTMLElement).style.transform)).not.toBe('');
   await expect.poll(async () => (await seal.boundingBox())!.y).toBeLessThan(initialSealTop - 20);
@@ -86,6 +86,14 @@ test('opens the sealed envelope and reveals the configured event', async ({ page
   await page.locator('.journey__destination').scrollIntoViewIfNeeded();
   await expect(page.locator('.journey__destination .journey__place')).toContainText('L’Olleria');
   await expect.poll(() => page.locator('.venue-card__art--aerial img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+});
+
+test('opens the envelope from the seal with the keyboard', async ({ page }) => {
+  await page.goto('/');
+  const seal = page.getByRole('button', { name: 'Obri la invitació de Jose i Anas' });
+  await seal.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-opening]')).toHaveAttribute('data-state', 'opening');
 });
 
 test('draws the road from Xeraco to the arrival pin as the bus moves', async ({ page }, testInfo) => {
