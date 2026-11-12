@@ -2,114 +2,76 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { requireAdmin, signOut } from '../../lib/auth.server';
 import { sameOrigin } from '../../lib/security.server';
-import { listInvitations, listGroups, createGroup, updateGroup, settings, createInvitation, saveSettings } from '../../lib/invitations.server';
-import { invitationInput, guestNames, formField, requiredField } from '../../lib/forms.server';
-import { localeName, parseLocale } from '../../lib/i18n';
+import { listInvitations, listGroups } from '../../lib/invitations.server';
+import { adminSummary } from '../../lib/admin-summary';
+import { formField } from '../../lib/forms.server';
 
 export const prerender = false;
 if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
-let error = '';
 if (Astro.request.method === 'POST') {
   if (!sameOrigin(Astro)) return new Response('No s’ha pogut validar la sol·licitud', { status: 403 });
   const data = await Astro.request.formData();
-  try {
-    const action = formField(data, 'action');
-    if (action === 'logout') { signOut(Astro); return Astro.redirect('/admin/login', 303); }
-    if (action === 'create') {
-      const id = await createInvitation({ ...invitationInput(data), names: guestNames(data) });
-      return Astro.redirect(`/admin/invitations/${id}?created=1`, 303);
-    }
-    if (action === 'createGroup') {
-      await createGroup(requiredField(formField(data, 'name'), 160, 'Nom del grup'), parseLocale(formField(data, 'locale')));
-      return Astro.redirect('/admin/?groupSaved=1#grupos', 303);
-    }
-    if (action === 'editGroup') {
-      await updateGroup(formField(data, 'groupId'), requiredField(formField(data, 'name'), 160, 'Nom del grup'), parseLocale(formField(data, 'locale')));
-      return Astro.redirect('/admin/?groupSaved=1#grupos', 303);
-    }
-    if (action === 'settings') {
-      const deadline = formField(data, 'deadline');
-      if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) throw new Error('La data límit no és vàlida.');
-      await saveSettings({ rsvp_enabled: formField(data, 'enabled') === 'yes', rsvp_deadline: deadline || null });
-      return Astro.redirect('/admin/?saved=1', 303);
-    }
-    throw new Error('Acció no vàlida.');
-  } catch (cause) { error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.'; }
+  if (formField(data, 'action') === 'logout') { signOut(Astro); return Astro.redirect('/admin/login', 303); }
+  return new Response('Acció no vàlida', { status: 400 });
 }
 let invitations = [] as Awaited<ReturnType<typeof listInvitations>>;
 let groups = [] as Awaited<ReturnType<typeof listGroups>>;
-let config: Awaited<ReturnType<typeof settings>> = { rsvp_enabled: true, rsvp_deadline: null };
-try { [invitations, groups, config] = await Promise.all([listInvitations(), listGroups(), settings()]); }
-catch { error = 'No podem carregar les dades. Revisa la connexió amb la base de dades.'; }
-const activeInvitations = invitations.filter((invitation) => !invitation.revoked_at);
-const guests = activeInvitations.flatMap((invitation) => invitation.guests);
-const count = (response: string) => guests.filter((guest) => guest.response === response).length;
-const search = Astro.url.searchParams.get('q')?.toLocaleLowerCase('es').trim() ?? '';
+let error = '';
+try { [invitations, groups] = await Promise.all([listInvitations(), listGroups()]); }
+catch { error = 'No podem carregar les dades. Torna a provar-ho més tard.'; }
+const summary = adminSummary(invitations);
+const tabParam = Astro.url.searchParams.get('tab');
+const tab = ['resum', 'invitacions'].includes(tabParam ?? '') ? tabParam : 'resum';
+const search = Astro.url.searchParams.get('q')?.trim() ?? '';
 const status = Astro.url.searchParams.get('status') ?? 'all';
 const groupFilter = Astro.url.searchParams.get('group') ?? 'all';
-const filtered = invitations.filter((invitation) => {
-  const matchesText = !search || [invitation.addressee, invitation.email ?? '', ...invitation.guests.map((guest) => guest.name)].some((part) => part.toLocaleLowerCase('es').includes(search));
-  const matchesStatus = status === 'all' || (status === 'revoked' ? Boolean(invitation.revoked_at) : status === 'unsent' ? !invitation.sent_at : invitation.guests.some((guest) => guest.response === status));
-  return matchesText && matchesStatus && (groupFilter === 'all' || (groupFilter === 'none' ? !invitation.group_id : invitation.group_id === groupFilter));
+const rows = invitations.flatMap((invitation) => invitation.guests.map((guest) => ({ invitation, guest })));
+const filtered = rows.filter(({ invitation, guest }) => {
+  const text = [invitation.addressee, invitation.email ?? '', guest.name].join(' ').toLocaleLowerCase('ca-ES');
+  const matchesSearch = !search || text.includes(search.toLocaleLowerCase('ca-ES'));
+  const matchesStatus = status === 'all' || (status === 'revoked' ? Boolean(invitation.revoked_at) : status === 'unsent' ? !invitation.sent_at && !invitation.revoked_at : !invitation.revoked_at && guest.response === status);
+  const matchesGroup = groupFilter === 'all' || (groupFilter === 'none' ? !invitation.group_id : invitation.group_id === groupFilter);
+  return matchesSearch && matchesStatus && matchesGroup && (status === 'revoked' || !invitation.revoked_at);
 });
+const activeRows = rows.filter(({ invitation, guest }) => !invitation.revoked_at && guest.response === 'yes');
+const foodRows = activeRows.filter(({ guest }) => guest.allergies.trim());
+const busRows = activeRows.filter(({ guest }) => guest.bus_seat === true);
+const metrics = [
+  { label: 'Persones convidades', value: summary.invited, href: '/admin/?tab=invitacions' },
+  { label: 'Assistiran', value: summary.accepted, href: '/admin/?tab=invitacions&status=yes' },
+  { label: 'No assistiran', value: summary.declined, href: '/admin/?tab=invitacions&status=no' },
+  { label: 'Pendents', value: summary.pending, href: '/admin/?tab=invitacions&status=pending' },
+];
+const responseBars = [
+  { label: 'Assistiran', value: summary.accepted }, { label: 'No assistiran', value: summary.declined }, { label: 'Pendents', value: summary.pending },
+];
+const busBars = [
+  { label: 'Només anada', value: summary.busOutbound }, { label: 'Només tornada', value: summary.busReturn }, { label: 'Anada i tornada', value: summary.busBoth },
+];
+const routeName = (route: string | null) => route === 'outbound' ? 'Només anada' : route === 'return' ? 'Només tornada' : route === 'both' ? 'Anada i tornada' : 'Sense trajecte';
 ---
-<BaseLayout title="Panell d’invitacions · Boda" privatePage>
+<BaseLayout title="Dashboard · Boda" privatePage>
   <div class="admin-shell">
-    <header class="admin-header">
-      <div><p class="eyebrow">Espai dels nuvis</p><h1>Invitacions i respostes</h1></div>
-      <form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form>
-    </header>
-    <nav class="admin-nav" aria-label="Seccions del panell"><a href="#resumen">Resum</a><a href="#invitaciones">Invitacions</a><a href="#grupos">Grups i idiomes</a><a href="#nueva">Nova invitació</a><a href="#ajustes">Configuració</a><a href="/admin/export.csv">Exporta el CSV</a></nav>
-    {error && <p class="form-message form-message--error" role="alert">{error}</p>}
-    {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Configuració guardada.</p>}
-    {Astro.url.searchParams.has('groupSaved') && <p class="form-message form-message--success" role="status">Grup i idioma guardats.</p>}
+    <header class="admin-header"><div><p class="eyebrow">Espai dels nuvis</p><h1>Dashboard</h1><p>Resum de les invitacions i respostes</p></div><form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form></header>
+    <nav class="admin-nav admin-nav--tabs" aria-label="Seccions del dashboard">
+      <a href="/admin/" aria-current={tab === 'resum' ? 'page' : undefined}>Resum</a>
+      <a href="/admin/?tab=invitacions" aria-current={tab === 'invitacions' ? 'page' : undefined}>Invitacions</a>
+      <a class="admin-nav__manage" href="/admin/gestion">Configuració i gestió</a>
+    </nav>
+    {error && <p class="form-message form-message--error" role="alert">{error} <a href={Astro.url.pathname + Astro.url.search}>Torna a provar-ho</a></p>}
     {Astro.url.searchParams.has('deleted') && <p class="form-message form-message--success" role="status">Invitació i respostes eliminades.</p>}
-    <section id="resumen" class="admin-section" aria-labelledby="resumen-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Resum</p><h2 id="resumen-title">Estat de les respostes</h2></div><p>Dades actualitzades en obrir esta pàgina.</p></div>
-      <div class="admin-stats">
-        <div><strong>{activeInvitations.length}</strong><span>Invitacions actives</span></div>
-        <div><strong>{guests.length}</strong><span>Persones convidades</span></div>
-        <div><strong>{count('yes')}</strong><span>Assistiran</span></div>
-        <div><strong>{count('no')}</strong><span>No assistiran</span></div>
-        <div><strong>{count('pending')}</strong><span>Pendents</span></div>
-        <div><strong>{guests.filter((guest) => guest.response === 'yes' && guest.allergies).length}</strong><span>Amb al·lèrgies</span></div>
-      </div>
-    </section>
-    <section id="invitaciones" class="admin-section" aria-labelledby="invitaciones-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Seguiment</p><h2 id="invitaciones-title">Invitacions</h2></div><a class="button" href="/admin/export.csv">Baixa la llista en CSV</a></div>
-      <form method="get" class="admin-filters" role="search">
-        <label for="q">Busca per nom o correu</label><input id="q" name="q" type="search" value={Astro.url.searchParams.get('q') ?? ''} />
-        <label for="status">Estat</label><select id="status" name="status"><option value="all" selected={status === 'all'}>Tots</option><option value="pending" selected={status === 'pending'}>Amb respostes pendents</option><option value="yes" selected={status === 'yes'}>Amb assistents</option><option value="no" selected={status === 'no'}>Amb absències</option><option value="unsent" selected={status === 'unsent'}>Sense enviar</option><option value="revoked" selected={status === 'revoked'}>Revocades</option></select>
-        <label for="group-filter">Grup</label><select id="group-filter" name="group"><option value="all" selected={groupFilter === 'all'}>Tots</option><option value="none" selected={groupFilter === 'none'}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select>
-        <button class="button" type="submit">Filtra</button>
-      </form>
-      {filtered.length ? <div class="admin-invitation-list">
-        {filtered.map((invitation) => <article class="admin-invitation">
-          <div><p class="admin-invitation__meta">{invitation.revoked_at ? 'Revocada' : invitation.sent_at ? 'Marcada com a enviada' : 'Pendent d’enviament'} · {groups.find((group) => group.id === invitation.group_id)?.name ?? 'Sense grup'} · {localeName[invitation.locale]}</p><h3>{invitation.addressee}</h3><p>{invitation.guests.map((guest) => guest.name).join(', ')}</p>{invitation.email && <p>{invitation.email}</p>}</div>
-          <div class="admin-invitation__side"><span>{invitation.guests.filter((guest) => guest.response === 'yes').length} sí · {invitation.guests.filter((guest) => guest.response === 'no').length} no · {invitation.guests.filter((guest) => guest.response === 'pending').length} pendents</span><a class="button" href={`/admin/invitations/${invitation.id}`}>Gestiona</a></div>
-        </article>)}
-      </div> : <p class="admin-empty">{invitations.length ? 'No hi ha invitacions que coincidisquen amb este filtre.' : 'Encara no hi ha invitacions. Crea’n una més avall.'}</p>}
-    </section>
-    <section id="grupos" class="admin-section" aria-labelledby="grupos-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Organitza</p><h2 id="grupos-title">Grups i idiomes</h2></div><p>Les invitacions d’un grup utilitzen el seu idioma. Si el canvies, també canvien els enllaços.</p></div>
-      {groups.map((group) => <form method="post" class="admin-form"><input type="hidden" name="action" value="editGroup" /><input type="hidden" name="groupId" value={group.id} /><label for={`group-name-${group.id}`}>Nom del grup</label><input id={`group-name-${group.id}`} name="name" value={group.name} maxlength="160" required /><label for={`group-locale-${group.id}`}>Idioma del grup</label><select id={`group-locale-${group.id}`} name="locale"><option value="es" selected={group.locale === 'es'}>Valencià</option><option value="uk" selected={group.locale === 'uk'}>Українська</option></select><button class="button" type="submit">Guarda el grup</button></form>)}
-      <form method="post" class="admin-form"><input type="hidden" name="action" value="createGroup" /><label for="new-group-name">Grup nou</label><input id="new-group-name" name="name" maxlength="160" required placeholder="Per exemple: família d’Ucraïna" /><label for="new-group-locale">Idioma predeterminat</label><select id="new-group-locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select><button class="button button--primary" type="submit">Crea el grup</button></form>
-    </section>
-    <section id="nueva" class="admin-section" aria-labelledby="nueva-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Prepara</p><h2 id="nueva-title">Nova invitació</h2></div><p>Un únic enllaç privat per a totes les persones incloses en la invitació.</p></div>
-      <form method="post" class="admin-form admin-form--wide"><input type="hidden" name="action" value="create" />
-        <label for="addressee">A qui va dirigida</label><input id="addressee" name="addressee" maxlength="160" required placeholder="Per exemple: Maria i Pau" />
-        <label for="email">Correu de contacte (opcional)</label><input id="email" name="email" type="email" maxlength="254" placeholder="Per al seguiment; no enviarem cap correu automàticament" />
-        <label for="guestNames">Persones convidades, una per línia</label><textarea id="guestNames" name="guestNames" rows="4" required placeholder={'Maria\nPau'}></textarea>
-        <label for="groupId">Grup (opcional)</label><select id="groupId" name="groupId"><option value="">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>
-        <label for="locale">Idioma si no hi ha grup</label><select id="locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select>
-        <label for="personalNote">Missatge personal en valencià (opcional)</label><textarea id="personalNote" name="personalNote" rows="3" maxlength="1000"></textarea>
-        <label for="personalNoteUk">Missatge personal en ucraïnés (opcional)</label><textarea id="personalNoteUk" name="personalNoteUk" rows="3" maxlength="1000"></textarea>
-        <button class="button button--primary" type="submit">Crea la invitació i l’enllaç</button>
-      </form>
-    </section>
-    <section id="ajustes" class="admin-section" aria-labelledby="ajustes-title"><div class="admin-section__heading"><div><p class="eyebrow">Control</p><h2 id="ajustes-title">Termini de confirmació</h2></div></div>
-      <form method="post" class="admin-form"><input type="hidden" name="action" value="settings" /><label class="admin-checkbox"><input type="checkbox" name="enabled" value="yes" checked={config.rsvp_enabled} /> Permet les respostes</label><label for="deadline">Data límit (opcional)</label><input type="date" id="deadline" name="deadline" value={config.rsvp_deadline ?? ''} /><button class="button button--primary" type="submit">Guarda la configuració</button></form>
-    </section>
+    {!error && tab === 'resum' && <main>
+      <section class="admin-section" aria-labelledby="overview-title"><div class="admin-section__heading"><div><p class="eyebrow">D'una passada</p><h2 id="overview-title">Estat general</h2></div><p>{summary.invitations} invitacions actives · Dades actualitzades en obrir la pàgina</p></div>
+        <div class="admin-stats admin-stats--four">{metrics.map((metric) => <a href={metric.href}><strong>{metric.value}</strong><span>{metric.label}</span></a>)}</div>
+        <div class="admin-chart" aria-label="Distribució de respostes">{responseBars.map((item) => <div class="admin-chart__row"><span>{item.label}</span><div class="admin-chart__track"><span style={`width:${summary.invited ? item.value / summary.invited * 100 : 0}%`}></span></div><strong>{item.value}</strong></div>)}</div>
+      </section>
+      <div class="admin-overview-grid"><section class="admin-section" aria-labelledby="food-overview"><h2 id="food-overview">Menjar</h2><p><strong>{summary.allergies}</strong> persones amb al·lèrgies o intoleràncies</p><a href="#menjar">Veure detalls de menjar →</a></section><section class="admin-section" aria-labelledby="bus-overview"><h2 id="bus-overview">Transport</h2><p><strong>{summary.busTotal}</strong> persones utilitzaran l'autobús</p><div class="admin-chart">{busBars.map((item) => <div class="admin-chart__row"><span>{item.label}</span><div class="admin-chart__track"><span style={`width:${summary.busTotal ? item.value / summary.busTotal * 100 : 0}%`}></span></div><strong>{item.value}</strong></div>)}</div><a href="#transport">Veure detalls de transport →</a></section></div>
+    </main>}
+    {!error && tab === 'invitacions' && <main class="admin-section" aria-labelledby="invitations-title"><div class="admin-section__heading"><div><p class="eyebrow">Seguiment</p><h2 id="invitations-title">Persones convidades</h2></div><a href="/admin/export.csv">Baixa el CSV</a></div>
+      <form method="get" class="admin-filters" role="search"><input type="hidden" name="tab" value="invitacions" /><label for="q">Busca per nom o correu</label><input id="q" name="q" type="search" value={search} /><label for="status">Estat</label><select id="status" name="status"><option value="all" selected={status === 'all'}>Tots</option><option value="pending" selected={status === 'pending'}>Pendent</option><option value="yes" selected={status === 'yes'}>Assistirà</option><option value="no" selected={status === 'no'}>No assistirà</option><option value="unsent" selected={status === 'unsent'}>Sense enviar</option><option value="revoked" selected={status === 'revoked'}>Revocades</option></select><label for="group-filter">Grup</label><select id="group-filter" name="group"><option value="all" selected={groupFilter === 'all'}>Tots</option><option value="none" selected={groupFilter === 'none'}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select><button class="button" type="submit">Filtra</button></form>
+      {filtered.length ? <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th scope="col">Persona</th><th scope="col">Invitació / grup</th><th scope="col">Enviament</th><th scope="col">Assistència</th><th scope="col">Al·lèrgies</th><th scope="col">Autobús</th><th scope="col">Acció</th></tr></thead><tbody>{filtered.map(({ invitation, guest }) => <tr><th scope="row" data-label="Persona">{guest.name}</th><td data-label="Invitació / grup">{invitation.addressee}<small>{groups.find((group) => group.id === invitation.group_id)?.name ?? 'Sense grup'}</small></td><td data-label="Enviament">{invitation.revoked_at ? 'Revocada' : invitation.sent_at ? 'Enviada' : 'Sense enviar'}</td><td data-label="Assistència">{guest.response === 'yes' ? 'Assistirà' : guest.response === 'no' ? 'No assistirà' : 'Pendent'}</td><td data-label="Al·lèrgies">{guest.response === 'yes' ? guest.allergies.trim() ? 'Sí' : 'No' : '—'}</td><td data-label="Autobús">{guest.response === 'yes' ? guest.bus_seat === true ? routeName(guest.bus_route) : guest.bus_seat === false ? 'No' : 'Pendent' : '—'}</td><td data-label="Acció"><a href={`/admin/invitations/${invitation.id}`}>Gestiona</a></td></tr>)}</tbody></table></div> : <p class="admin-empty">{rows.length ? 'No hi ha persones que coincidisquen amb el filtre.' : 'Encara no hi ha invitacions. Crea’n una en Configuració i gestió.'}</p>}
+    </main>}
+    {!error && tab === 'resum' && <section id="menjar" class="admin-section" aria-labelledby="food-title"><div class="admin-section__heading"><div><p class="eyebrow">Organització del menú</p><h2 id="food-title">Al·lèrgies i intoleràncies</h2></div></div><div class="admin-stats admin-stats--four"><div><strong>{summary.allergies}</strong><span>Persones assistents amb al·lèrgies o intoleràncies</span></div></div>{foodRows.length ? <div class="admin-detail-list">{foodRows.map(({ invitation, guest }) => <article><h3>{guest.name}</h3><p>{invitation.addressee}</p><p><strong>Al·lèrgies:</strong> {guest.allergies}</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació</a></article>)}</div> : <p class="admin-empty">Ningú ha indicat al·lèrgies o intoleràncies.</p>}</section>}
+    {!error && tab === 'resum' && <section id="transport" class="admin-section" aria-labelledby="transport-title"><div class="admin-section__heading"><div><p class="eyebrow">Organització de l'autobús</p><h2 id="transport-title">Transport</h2></div></div><div class="admin-stats admin-stats--four"><div><strong>{summary.busOutbound}</strong><span>Només anada</span></div><div><strong>{summary.busReturn}</strong><span>Només tornada</span></div><div><strong>{summary.busBoth}</strong><span>Anada i tornada</span></div><div><strong>{summary.busTotal}</strong><span>Total de persones</span></div></div><div class="admin-chart" aria-label="Distribució dels trajectes">{busBars.map((item) => <div class="admin-chart__row"><span>{item.label}</span><div class="admin-chart__track"><span style={`width:${summary.busTotal ? item.value / summary.busTotal * 100 : 0}%`}></span></div><strong>{item.value}</strong></div>)}</div>{busRows.length ? <div class="admin-detail-list">{busRows.map(({ invitation, guest }) => <article><h3>{guest.name}</h3><p>{invitation.addressee} · {routeName(guest.bus_route)}</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació</a></article>)}</div> : <p class="admin-empty">Encara no hi ha reserves d'autobús.</p>}</section>}
   </div>
 </BaseLayout>

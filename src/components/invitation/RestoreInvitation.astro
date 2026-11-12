@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import type { Locale } from '../../lib/i18n';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<BaseLayout privatePage locale={locale}>
+  <section class="section" data-restore-invitation data-locale={locale}>
+    <div class="admin-shell">
+      <h1>{locale === 'uk' ? 'Відкриваємо запрошення…' : 'Obrint la invitació…'}</h1>
+      <p data-restore-message>{locale === 'uk' ? 'Якщо запрошення не відкриється, скористайтеся особистим посиланням, яке вам надіслали.' : 'Si la invitació no s’obri, utilitza l’enllaç personal que t’han enviat.'}</p>
+    </div>
+  </section>
+  <script>
+    const restore = document.querySelector<HTMLElement>('[data-restore-invitation]');
+    const locale = restore?.dataset.locale === 'uk' ? 'uk' : 'es';
+    try {
+      const token = localStorage.getItem('wedding.invitation.token');
+      if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
+        location.replace(`${locale === 'uk' ? '/uk' : ''}/i/${token}/?lang=${locale}${location.hash}`);
+      }
+    } catch { /* The message tells guests to reopen their personal link. */ }
+  </script>
+</BaseLayout>

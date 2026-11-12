@@ -38,7 +38,6 @@ test('the couple creates a link, guests respond, and the couple can control acce
   await guestFields.nth(0).getByLabel('Sí', { exact: true }).check();
   await expect(guestFields.nth(0).locator('.rsvp-form__allergy-detail')).toBeVisible();
   await guestFields.nth(0).getByLabel(/Explica les al·lèrgies/).fill('Frutos secos; evitar trazas');
-  await guestFields.nth(0).getByLabel('Altres necessitats alimentàries (opcional)').fill('Sin lactosa');
   await guestFields.nth(0).getByLabel(/Autoritze Jose i Anas/).check();
   await guestFields.nth(0).getByLabel('Sí, vull plaça').check();
   await guestFields.nth(0).getByLabel('Anada i tornada').check();

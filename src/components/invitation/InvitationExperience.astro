@@ -24,7 +24,7 @@ const c = t(locale);
     }, 8000);
   </script>
   <Envelope locale={locale} />
-  <div class="invitation" id="invitation-content">
+  <div class="invitation" id="invitation-content" data-private-token={recipient && !preview ? recipient.token : undefined} data-private-locale={locale}>
     <button class="invitation__music" data-music-toggle data-music-play={c.musicPlay} data-music-pause={c.musicPause} type="button" aria-label={c.musicPlay} aria-pressed="false">
       <span aria-hidden="true">♪</span>
       <span data-music-label>{c.musicPlay}</span>
@@ -41,7 +41,7 @@ const c = t(locale);
     </div>
     <Timeline locale={locale} />
     {invitation && rsvpSettings
-      ? <RSVPForm invitation={invitation} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />
+      ? <RSVPForm invitation={invitation} token={recipient?.token} settings={rsvpSettings} error={rsvpError} saved={rsvpSaved} submitted={rsvpSubmitted} locale={locale} />
       : preview && <RSVPForm preview locale={locale} />}
     <footer class="footer">
       <p>{c.farewell}</p>
@@ -55,6 +55,13 @@ const c = t(locale);
     const html = document.documentElement;
     const opening = document.querySelector<HTMLElement>('[data-opening]');
     const invitation = document.querySelector<HTMLElement>('.invitation');
+    if (invitation?.dataset.privateToken) {
+      try {
+        localStorage.setItem('wedding.invitation.token', invitation.dataset.privateToken);
+        const cleanPath = invitation.dataset.privateLocale === 'uk' ? '/uk/i/' : '/i/';
+        history.replaceState(null, '', cleanPath + location.hash);
+      } catch { /* Keep the token URL if storage is unavailable so reloads still work. */ }
+    }
     const envelope = document.querySelector<HTMLElement>('[data-envelope]');
     const front = document.querySelector<HTMLElement>('[data-envelope-front]');
     const seal = document.querySelector<HTMLButtonElement>('[data-open]');

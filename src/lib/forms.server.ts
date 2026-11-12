@@ -34,7 +34,6 @@ export function guestInput(data: FormData) {
   const response = field(data, 'response') as ResponseStatus;
   if (!['pending', 'yes', 'no'].includes(response)) throw new Error('Selecciona un estat vàlid.');
   const allergies = optional(field(data, 'allergies'), 2000, 'Al·lèrgies');
-  const dietaryNotes = optional(field(data, 'dietaryNotes'), 1000, 'Necessitats alimentàries');
   const observations = optional(field(data, 'observations'), 1000, 'Observacions');
   const bus = field(data, 'bus');
   if (bus && bus !== 'yes' && bus !== 'no') throw new Error('Selecciona una resposta vàlida per a l’autobús.');
@@ -42,8 +41,8 @@ export function guestInput(data: FormData) {
   if (busRoute && !['outbound', 'return', 'both'].includes(busRoute)) throw new Error('Selecciona un trajecte vàlid per a l’autobús.');
   if (response === 'yes' && bus === 'yes' && !busRoute) throw new Error('Indica si necessites autobús d’anada, de tornada o per als dos trajectes.');
   const consent = field(data, 'consent') === 'yes';
-  if (response === 'yes' && (allergies || dietaryNotes) && !consent) throw new Error('Confirma que tens permís per a registrar la informació alimentària.');
-  return { name, response, allergies, dietaryNotes, observations, busSeat: response === 'yes' && bus ? bus === 'yes' : null, busRoute: response === 'yes' && bus === 'yes' ? (busRoute || null) as BusRoute | null : null, consent };
+  if (response === 'yes' && allergies && !consent) throw new Error('Confirma que tens permís per a registrar la informació alimentària.');
+  return { name, response, allergies, observations, busSeat: response === 'yes' && bus ? bus === 'yes' : null, busRoute: response === 'yes' && bus === 'yes' ? (busRoute || null) as BusRoute | null : null, consent };
 }
 export function rsvpInput(data: FormData, guests: { id: string }[], locale: Locale = 'es') {
   const c = t(locale);
@@ -53,13 +52,12 @@ export function rsvpInput(data: FormData, guests: { id: string }[], locale: Loca
     const allergiesAnswer = field(data, `allergy_answer_${id}`);
     if (response === 'yes' && allergiesAnswer !== 'yes' && allergiesAnswer !== 'no') throw new Error(c.selectAllergy);
     const allergies = response === 'yes' && allergiesAnswer === 'yes' ? required(field(data, `allergies_${id}`), 2000, c.allergyRequired, locale) : '';
-    const dietaryNotes = response === 'yes' ? optional(field(data, `dietary_${id}`), 1000, c.dietaryRequired, locale) : '';
     const bus = response === 'yes' ? field(data, `bus_${id}`) : '';
     if (response === 'yes' && bus !== 'yes' && bus !== 'no') throw new Error(c.selectBus);
     const busRoute = bus === 'yes' ? field(data, `bus_route_${id}`) : '';
     if (bus === 'yes' && !['outbound', 'return', 'both'].includes(busRoute)) throw new Error(c.selectBusRoute);
     const consent = response === 'yes' && field(data, `consent_${id}`) === 'yes';
-    if ((allergies || dietaryNotes) && !consent) throw new Error(c.consentRequired);
-    return { id, response: response as 'yes' | 'no', allergies, dietaryNotes, busSeat: bus ? bus === 'yes' : null, busRoute: busRoute ? busRoute as BusRoute : null, consent };
+    if (allergies && !consent) throw new Error(c.consentRequired);
+    return { id, response: response as 'yes' | 'no', allergies, busSeat: bus ? bus === 'yes' : null, busRoute: busRoute ? busRoute as BusRoute : null, consent };
   });
 }

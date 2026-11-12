@@ -20,14 +20,14 @@ describe('invitation forms', () => {
     const fields = { 'response_person-1': 'yes', 'allergy_answer_person-1': 'yes', 'allergies_person-1': 'Alergia a frutos secos; evitar trazas', 'bus_person-1': 'yes', 'bus_route_person-1': 'both' };
     expect(() => rsvpInput(data(fields), [guest])).toThrow(/autoritzar/);
     expect(rsvpInput(data({ ...fields, 'consent_person-1': 'yes' }), [guest])).toEqual([{
-      id: 'person-1', response: 'yes', allergies: 'Alergia a frutos secos; evitar trazas', dietaryNotes: '', busSeat: true, busRoute: 'both', consent: true,
+      id: 'person-1', response: 'yes', allergies: 'Alergia a frutos secos; evitar trazas', busSeat: true, busRoute: 'both', consent: true,
     }]);
     expect(() => guestInput(data({ name: 'María', response: 'yes', allergies: 'Frutos secos' }))).toThrow(/permís/);
   });
 
   it('discards food details when a person declines', () => {
     expect(rsvpInput(data({ 'response_person-1': 'no', 'allergies_person-1': 'Texto anterior', 'bus_person-1': 'yes', 'consent_person-1': 'yes' }), [{ id: 'person-1' }])).toEqual([{
-      id: 'person-1', response: 'no', allergies: '', dietaryNotes: '', busSeat: null, busRoute: null, consent: false,
+      id: 'person-1', response: 'no', allergies: '', busSeat: null, busRoute: null, consent: false,
     }]);
   });
 
@@ -35,7 +35,7 @@ describe('invitation forms', () => {
     const guest = { id: 'person-1' };
     expect(() => rsvpInput(data({ 'response_person-1': 'yes', 'allergy_answer_person-1': 'no' }), [guest])).toThrow(/autobús/);
     expect(rsvpInput(data({ 'response_person-1': 'yes', 'allergy_answer_person-1': 'no', 'bus_person-1': 'no' }), [guest])).toEqual([{
-      id: 'person-1', response: 'yes', allergies: '', dietaryNotes: '', busSeat: false, busRoute: null, consent: false,
+      id: 'person-1', response: 'yes', allergies: '', busSeat: false, busRoute: null, consent: false,
     }]);
     expect(() => rsvpInput(data({ 'response_person-1': 'yes', 'allergy_answer_person-1': 'no', 'bus_person-1': 'invalid' }), [guest])).toThrow(/autobús/);
     const yes = { 'response_person-1': 'yes', 'allergy_answer_person-1': 'no', 'bus_person-1': 'yes' };

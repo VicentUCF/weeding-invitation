@@ -1,11 +1,11 @@
 ---
 import { canRespond, type Invitation, type Settings } from '../../lib/invitations.server';
-import { t, type Locale } from '../../lib/i18n';
-interface Props { invitation?: Invitation; settings?: Settings; error?: string; saved?: boolean; submitted?: FormData; preview?: boolean; locale?: Locale }
-const { invitation, settings, error = '', saved = false, submitted, preview = false, locale = 'es' } = Astro.props;
+import { invitationPath, t, type Locale } from '../../lib/i18n';
+interface Props { invitation?: Invitation; token?: string; settings?: Settings; error?: string; saved?: boolean; submitted?: FormData; preview?: boolean; locale?: Locale }
+const { invitation, token, settings, error = '', saved = false, submitted, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
 const open = preview || (settings ? canRespond(settings) : false);
-const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', dietary_notes: '', bus_seat: null, bus_route: null, food_data_consent: false }] : []);
+const guests = invitation?.guests ?? (preview ? [{ id: 'preview', name: c.previewGuest, response: 'pending', allergies: '', bus_seat: null, bus_route: null, food_data_consent: false }] : []);
 const value = (name: string, fallback = '') => submitted ? String(submitted.get(name) ?? '') : fallback;
 ---
 <section id="confirmar" class="section rsvp" aria-labelledby="rsvp-title">
@@ -21,7 +21,7 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
     {saved && <div class="form-message form-message--success" role="status" tabindex="-1"><p>{c.saved}</p><ul>{guests.map((guest) => <li><strong>{guest.name}</strong><span>{guest.response === 'yes' ? c.yes : guest.response === 'no' ? c.no : c.pending}</span></li>)}</ul></div>}
     {error && <p class="form-message form-message--error" role="alert" tabindex="-1" data-form-error>{error}</p>}
     {!open && <p class="form-message">{c.closed}</p>}
-    <form method={preview ? undefined : 'post'} class="rsvp-form" data-rsvp-preview={preview ? '' : undefined}>
+    <form method={preview ? undefined : 'post'} action={token ? `${invitationPath(token, locale)}?lang=${locale}` : undefined} class="rsvp-form" data-rsvp-preview={preview ? '' : undefined}>
       {guests.map((guest, index) => (
         <fieldset class="rsvp-form__guest" data-rsvp-guest disabled={!open}>
           <legend><span class="rsvp-form__number">0{index + 1}</span> {guest.name}</legend>
@@ -44,8 +44,6 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
               <label for={`allergies_${guest.id}`}>{c.allergyLabel}</label>
               <textarea id={`allergies_${guest.id}`} name={`allergies_${guest.id}`} rows="3" maxlength="2000" placeholder={c.allergyPlaceholder}>{value(`allergies_${guest.id}`, guest.allergies)}</textarea>
             </div>
-            <label for={`dietary_${guest.id}`}>{c.dietaryLabel}</label>
-            <textarea id={`dietary_${guest.id}`} name={`dietary_${guest.id}`} rows="2" maxlength="1000" placeholder={c.dietaryPlaceholder}>{value(`dietary_${guest.id}`, guest.dietary_notes)}</textarea>
             <label class="rsvp-form__consent"><input type="checkbox" name={`consent_${guest.id}`} value="yes" checked={submitted ? submitted.get(`consent_${guest.id}`) === 'yes' : guest.food_data_consent} /><span>{c.consent}</span></label>
           </div>
           <div class="rsvp-form__transport">
@@ -156,7 +154,6 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       const busRoute = fieldset.querySelector<HTMLElement>('.rsvp-form__bus-route');
       const busRouteInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="bus_route_"]');
       const allergyDetail = fieldset.querySelector<HTMLElement>('.rsvp-form__allergy-detail');
-      const dietary = fieldset.querySelector<HTMLTextAreaElement>('textarea[name^="dietary_"]');
       const consent = fieldset.querySelector<HTMLElement>('.rsvp-form__consent');
       const consentInput = consent?.querySelector<HTMLInputElement>('input');
       const allergyInputs = fieldset.querySelectorAll<HTMLInputElement>('input[name^="allergy_answer_"]');
@@ -169,7 +166,7 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
       showPanel(allergyDetail, attending && allergy, animate);
       allergyInputs.forEach((input) => { input.required = attending; });
       if (detail) detail.required = attending && allergy;
-      const needsConsent = attending && ((allergy && !!detail?.value.trim()) || !!dietary?.value.trim());
+      const needsConsent = attending && allergy && !!detail?.value.trim();
       showPanel(consent, needsConsent, animate);
       if (consentInput) consentInput.required = needsConsent;
     };
