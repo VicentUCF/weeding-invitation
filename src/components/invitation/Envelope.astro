@@ -41,4 +41,9 @@ const dateLong = new Date(`${wedding.date}T12:00:00Z`).toLocaleDateString(locale
     <p class="opening__hint">{c.hint}</p>
     <button class="opening__skip" data-skip type="button">{c.skipAnimation}</button>
   </div>
+  <button class="opening__sound" data-sound-toggle data-sound-on={c.soundOn} data-sound-off={c.soundOff} type="button" aria-label={c.soundOn} aria-pressed="true">
+    <span aria-hidden="true">♪</span>
+    <span data-sound-label>{c.soundOn}</span>
+  </button>
+  <audio data-opening-audio src="/sounds/envelope-opening.mp3" preload="auto"></audio>
 </section>

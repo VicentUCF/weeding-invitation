@@ -12,7 +12,7 @@ export const invitationPath = (token: string, locale: Locale) => `${locale === '
 const copy = {
   es: {
     title: 'La boda de', description: 'Jose i Anas es casen el 30 d’octubre de 2027 a L’Alqueria de Galim, a l’Olleria. Consulta els detalls de la celebració i confirma l’assistència amb la teua invitació.', skip: 'Ves al contingut',
-    openLabel: 'Obri la invitació', special: 'Una carta per a tu', open: 'Obri la invitació de', hint: 'Toca la pantalla per a obrir-la', skipAnimation: 'Entra sense animació',
+    openLabel: 'Obri la invitació', special: 'Una carta per a tu', open: 'Obri la invitació de', hint: 'Toca la pantalla per a obrir-la', skipAnimation: 'Entra sense animació', soundOn: 'Desactiva el so', soundOff: 'Activa el so', musicPlay: 'Reproduïx la música', musicPause: 'Pausa la música',
     weddingInvitation: 'Invitació de boda', for: 'Per a', weMarry: 'Ens casem', discover: 'Descobrix la invitació',
     whereWhen: 'On i quan', placeTitle: 'El nostre punt de trobada', location: 'Localitat', directions: 'Com arribar-hi', program: 'El dia de la boda', moments: 'Moments per a compartir', beginning: 'La cerimònia',
     journeyEyebrow: 'De camí', journeyTitle: 'Camí de la celebració', journeyIntro: 'De Xeraco a l’Olleria, entre oliveres i xiprers.', journeyStart: 'Xeraco', journeyEnd: 'L’Olleria', journeyDirection: 'Cap a l’Olleria', journeyArrivalKicker: 'La millor parada', journeyWaiting: 't’esperen', journeyCaption: 'Ací comença la celebració.', journeyArtAlt: 'Recorregut il·lustrat de Xeraco a l’Olleria per la CV-60, amb un autobús i paisatges d’aquarel·la.',
@@ -29,7 +29,7 @@ const copy = {
   },
   uk: {
     title: 'Весілля', description: 'Jose та Anas одружуються 30 жовтня 2027 року в L’Alqueria de Galim, L’Olleria. Дізнайтеся подробиці та підтвердьте присутність за особистим запрошенням.', skip: 'Перейти до вмісту',
-    openLabel: 'Відкрити запрошення', special: 'Лист для вас', open: 'Відкрити запрошення на весілля', hint: 'Торкніться екрана, щоб відкрити лист', skipAnimation: 'Увійти без анімації',
+    openLabel: 'Відкрити запрошення', special: 'Лист для вас', open: 'Відкрити запрошення на весілля', hint: 'Торкніться екрана, щоб відкрити лист', skipAnimation: 'Увійти без анімації', soundOn: 'Вимкнути звук', soundOff: 'Увімкнути звук', musicPlay: 'Увімкнути музику', musicPause: 'Призупинити музику',
     weddingInvitation: 'Запрошення на весілля', for: 'Для', weMarry: 'Ми одружуємося', discover: 'Переглянути запрошення',
     whereWhen: 'Де і коли', placeTitle: 'Місце нашої зустрічі', location: 'Адреса', directions: 'Переглянути маршрут', program: 'Наш день', moments: 'Кожна мить разом', beginning: 'Так починається наш день',
     journeyEyebrow: 'Дорогою', journeyTitle: 'Дорога до нашої зустрічі', journeyIntro: 'Від Xeraco до L’Olleria, поміж оливами й кипарисами.', journeyStart: 'Xeraco', journeyEnd: 'L’Olleria', journeyDirection: 'У напрямку L’Olleria', journeyArrivalKicker: 'Найкраща зупинка', journeyWaiting: 'чекають на вас', journeyCaption: 'Тут починається наше святкування.', journeyArtAlt: 'Ілюстрований маршрут від Xeraco дорогою CV-60 до L’Olleria з автобусом та акварелями запрошення.',

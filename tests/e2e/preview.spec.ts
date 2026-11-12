@@ -96,6 +96,59 @@ test('opens the envelope from the seal with the keyboard', async ({ page }) => {
   await expect(page.locator('[data-opening]')).toHaveAttribute('data-state', 'opening');
 });
 
+test('plays the opening sound on request and lets guests mute it', async ({ page }) => {
+  await page.goto('/');
+  const sound = page.locator('[data-sound-toggle]');
+  const audio = page.locator('[data-opening-audio]');
+  await expect(sound).toHaveAttribute('aria-pressed', 'true');
+  await sound.click();
+  await expect(sound).toHaveAttribute('aria-pressed', 'false');
+  await expect(sound).toHaveAttribute('aria-label', 'Activa el so');
+  await expect(page.locator('[data-opening]')).not.toHaveAttribute('data-state', 'opening');
+  await page.locator('[data-open]').click();
+  await expect(page.locator('[data-opening]')).toHaveAttribute('data-state', 'opening');
+  await expect(audio).toHaveJSProperty('paused', true);
+  await expect(page.locator('.opening__floral--left')).toHaveCSS('animation-name', 'floral-sway');
+
+  await page.reload();
+  await audio.evaluate((element: HTMLAudioElement) => {
+    element.addEventListener('play', () => { element.dataset.played = 'true'; }, { once: true });
+  });
+  await page.locator('[data-open]').click();
+  await expect(audio).toHaveAttribute('data-played', 'true');
+  await sound.click();
+  await expect(audio).toHaveJSProperty('paused', true);
+});
+
+test('starts the wedding music after the envelope sound and lets guests pause it', async ({ page }) => {
+  await page.goto('/');
+  const music = page.locator('[data-wedding-music]');
+  const musicToggle = page.locator('[data-music-toggle]');
+  await page.locator('[data-opening-audio]').evaluate((element: HTMLAudioElement) => {
+    element.addEventListener('ended', () => { element.dataset.finished = 'true'; }, { once: true });
+  });
+  await music.evaluate((element: HTMLAudioElement) => {
+    element.addEventListener('play', () => {
+      element.dataset.startedAfterEnvelope = String(document.querySelector<HTMLAudioElement>('[data-opening-audio]')?.ended);
+    }, { once: true });
+  });
+  await page.locator('[data-open]').click();
+  await expect(music).toHaveAttribute('data-started-after-envelope', 'true');
+  await expect(page.locator('[data-opening-audio]')).toHaveAttribute('data-finished', 'true');
+  await expect(page.locator('[data-opening]')).toBeVisible();
+  await expect(page.locator('[data-opening]')).toBeHidden();
+  await expect(musicToggle).toHaveAttribute('aria-pressed', 'true');
+  await musicToggle.click();
+  await expect(music).toHaveJSProperty('paused', true);
+  await expect(musicToggle).toHaveAttribute('aria-label', 'Reproduïx la música');
+
+  await page.reload();
+  await page.locator('[data-sound-toggle]').click();
+  await page.locator('[data-skip]').click();
+  await expect(music).toHaveJSProperty('paused', true);
+  await expect(musicToggle).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('draws the road from Xeraco to the arrival pin as the bus moves', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Entra sense animació' }).click();

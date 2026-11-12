@@ -19,6 +19,11 @@
 .invitation .button--primary { color: #fff; }
 .invitation :focus-visible { outline-color: var(--iv-olive); }
 .invitation .language-switch a[aria-current='page'] { background: var(--iv-olive); color: #fff; }
+.invitation__music { display: none; }
+.has-js .invitation__music { position: fixed; right: clamp(.75rem, 2vw, 1.5rem); bottom: clamp(.75rem, 2vw, 1.5rem); z-index: 15; display: inline-flex; align-items: center; gap: .5rem; max-width: calc(100vw - 1.5rem); min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--iv-olive); border-radius: 2rem; background: var(--iv-paper); box-shadow: 0 4px 18px rgba(47, 54, 45, .16); color: var(--iv-olive); cursor: pointer; font: 600 .75rem/1.3 var(--font-body); }
+.invitation__music:hover { background: var(--iv-olive-soft); }
+.invitation__music[aria-pressed='true'] { background: var(--iv-olive); color: #fff; }
+.invitation__music[aria-pressed='true']:hover { background: #344735; }
 
 .has-js .opening { width: 100dvw; height: 100dvh; min-height: 0; padding: clamp(1rem, 4dvh, 2.5rem) 1.5rem; overflow: hidden; background: url('/images/paper-grain.svg') repeat, radial-gradient(ellipse at 50% 43%, #fcfaf2 14%, #f2f0e5 64%, #e4e8dc); background-size: 256px 256px, cover; }
 .opening__frame { inset: clamp(.8rem, 2vw, 1.6rem); border-color: rgba(70, 91, 71, .34); }
@@ -44,6 +49,8 @@
 .opening__hint { margin: clamp(1.35rem, 3.5vh, 2.3rem) 0 .4rem; color: var(--iv-ink); font-size: clamp(1.05rem, 2vw, 1.25rem); }
 .opening__skip { color: var(--iv-olive); text-decoration-color: rgba(70, 91, 71, .5); }
 .opening__skip:hover { color: #263f57; }
+.opening__sound { border-color: rgba(70, 91, 71, .28); background: rgba(251, 248, 238, .86); color: var(--iv-olive); }
+.opening__sound:hover { background: var(--iv-paper); }
 
 @media (max-width: 600px) {
   .has-js .opening { padding: clamp(.75rem, 3dvh, 1.5rem) 1.25rem; }

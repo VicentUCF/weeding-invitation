@@ -25,6 +25,11 @@ const c = t(locale);
   </script>
   <Envelope locale={locale} />
   <div class="invitation" id="invitation-content">
+    <button class="invitation__music" data-music-toggle data-music-play={c.musicPlay} data-music-pause={c.musicPause} type="button" aria-label={c.musicPlay} aria-pressed="false">
+      <span aria-hidden="true">♪</span>
+      <span data-music-label>{c.musicPlay}</span>
+    </button>
+    <audio data-wedding-music src="/sounds/wedding-preview.mp3" preload="none"></audio>
     {recipient && <nav class="language-switch" aria-label={locale === 'uk' ? 'Мова запрошення' : 'Idioma de la invitació'}>
       {locales.map((option) => <a href={`${invitationPath(recipient.token, option)}?lang=${option}`} lang={htmlLang[option]} aria-current={option === locale ? 'page' : undefined}>{localeName[option]}</a>)}
     </nav>}
@@ -54,6 +59,10 @@ const c = t(locale);
     const front = document.querySelector<HTMLElement>('[data-envelope-front]');
     const seal = document.querySelector<HTMLButtonElement>('[data-open]');
     const skip = document.querySelector<HTMLButtonElement>('[data-skip]');
+    const soundToggle = document.querySelector<HTMLButtonElement>('[data-sound-toggle]');
+    const openingAudio = document.querySelector<HTMLAudioElement>('[data-opening-audio]');
+    const musicToggle = document.querySelector<HTMLButtonElement>('[data-music-toggle]');
+    const weddingMusic = document.querySelector<HTMLAudioElement>('[data-wedding-music]');
     const flap = document.querySelector<HTMLElement>('[data-flap]');
     const letter = document.querySelector<HTMLElement>('[data-letter]');
     const card = document.querySelector<HTMLElement>('[data-card]');
@@ -61,6 +70,42 @@ const c = t(locale);
     const hero = document.querySelector<HTMLElement>('.hero');
     const heading = document.querySelector<HTMLElement>('#hero-title');
     const returnToRsvp = window.location.hash === '#confirmar' || new URLSearchParams(window.location.search).has('saved') || !!document.querySelector('[data-form-error]');
+
+    if (weddingMusic && musicToggle) {
+      weddingMusic.volume = .35;
+      const updateMusicButton = () => {
+        const playing = !weddingMusic.paused && !weddingMusic.ended;
+        const label = playing ? musicToggle.dataset.musicPause : musicToggle.dataset.musicPlay;
+        musicToggle.setAttribute('aria-pressed', String(playing));
+        if (label) {
+          musicToggle.setAttribute('aria-label', label);
+          const text = musicToggle.querySelector('[data-music-label]');
+          if (text) text.textContent = label;
+        }
+      };
+      weddingMusic.addEventListener('play', updateMusicButton);
+      weddingMusic.addEventListener('pause', updateMusicButton);
+      weddingMusic.addEventListener('ended', updateMusicButton);
+      musicToggle.addEventListener('click', () => {
+        if (weddingMusic.paused || weddingMusic.ended) {
+          if (weddingMusic.ended) weddingMusic.currentTime = 1.8;
+          void weddingMusic.play().catch(updateMusicButton);
+        } else {
+          weddingMusic.pause();
+        }
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) weddingMusic.pause();
+      });
+    }
+
+    const startMusic = () => {
+      if (!weddingMusic || soundToggle?.getAttribute('aria-pressed') === 'false' || !weddingMusic.paused || (openingAudio && !openingAudio.paused && !openingAudio.ended)) return;
+      // The licensed track has a quiet introduction; start at its first notes.
+      weddingMusic.currentTime = 1.8;
+      void weddingMusic.play().catch(() => { /* The visible control lets guests start it if playback is blocked. */ });
+    };
+    openingAudio?.addEventListener('ended', startMusic);
 
     if (returnToRsvp) {
       if (hero && paper) {
@@ -94,6 +139,22 @@ const c = t(locale);
       const resizeObserver = new ResizeObserver(fitMiniPaper);
       resizeObserver.observe(letter);
 
+      soundToggle?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const enabled = soundToggle.getAttribute('aria-pressed') !== 'true';
+        soundToggle.setAttribute('aria-pressed', String(enabled));
+        const label = enabled ? soundToggle.dataset.soundOn : soundToggle.dataset.soundOff;
+        if (label) {
+          soundToggle.setAttribute('aria-label', label);
+          const text = soundToggle.querySelector('[data-sound-label]');
+          if (text) text.textContent = label;
+        }
+        if (!enabled) {
+          openingAudio?.pause();
+          weddingMusic?.pause();
+        }
+      });
+
       const reveal = () => {
         resizeObserver.disconnect();
         hero.appendChild(paper);
@@ -121,6 +182,7 @@ const c = t(locale);
         );
         await animation.finished;
         animation.cancel();
+        startMusic();
       };
 
       const moveLetter = async (
@@ -204,18 +266,26 @@ const c = t(locale);
           await enterPaper();
         } catch {
           reveal();
+          startMusic();
         }
       };
 
       skip.addEventListener('click', () => {
         html.classList.add('invitation-skip');
         reveal();
+        startMusic();
       }, { once: true });
       opening.addEventListener('click', (event) => {
-        if (opening.dataset.state === 'opening' || html.classList.contains('invitation-open') || (event.target instanceof Element && event.target.closest('[data-skip]'))) return;
+        if (opening.dataset.state === 'opening' || html.classList.contains('invitation-open') || (event.target instanceof Element && event.target.closest('[data-skip], [data-sound-toggle]'))) return;
         seal.disabled = true;
         skip.disabled = true;
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (openingAudio && soundToggle?.getAttribute('aria-pressed') === 'true') {
+          openingAudio.currentTime = 0;
+          void openingAudio.play().catch(() => { /* Keep opening if audio is unavailable or blocked. */ });
+          weddingMusic?.load();
+        }
+        if (reducedMotion) {
           reveal();
           return;
         }
@@ -240,6 +310,7 @@ const c = t(locale);
             .add(envelope, { y: [0, 15], scale: [1, 1.03], duration: 500, ease: 'inOut(2)' }, 1150);
         } catch {
           reveal();
+          startMusic();
         }
       });
     } else {

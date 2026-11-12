@@ -20,3 +20,10 @@
 | `public/images/venue-map-watercolor.webp` | Fondo decorativo de cartografía en acuarela para la tarjeta de ubicación, generado con ImageGen a partir de la temática del mapa mural aportado por el usuario y la paleta de la carta. Continentes tenues, rosa de los vientos y motivos mediterráneos, sin rótulos ni valor de navegación. Original: `/home/vicent_ucf/.codex/generated_images/01a1c512-ef56-7020-bdf4-87fbd8e541fc/exec-fcc202d0-8b95-4ce4-b993-7f5086ca0610.png`. WebP de 1536 × 1024 px; se muestra con opacidad baja detrás del contenido. |
 
 Los ornamentos y pétalos son decorativos y usan `alt=""`. El sello se encuentra dentro de un botón con nombre accesible.
+
+## Sonido y música
+
+| Archivo | Procedencia y uso |
+| --- | --- |
+| `public/sounds/envelope-opening.mp3` | Composición propia de dos efectos de [Mixkit: «Page turn single» y «Paper slide»](https://mixkit.co/free-sound-effects/paper/) (archivos `1104.wav` y `1530.wav`). Se mezclaron a volumen reducido, con el deslizamiento a los 1,1 s y salida gradual; resultado MP3 de 2,2 s y 27 KB. Se reproduce una vez tras la acción de abrir el sobre, y hay un botón para silenciarlo. La [licencia gratuita de efectos de Mixkit](https://mixkit.co/license/modal/sfxFree/) permite modificar e incorporar los sonidos a un proyecto web; no se incluyen los WAV originales. |
+| `public/sounds/wedding-preview.mp3` | [«Wedding 01» de Francisco Alvear, en Mixkit](https://mixkit.co/free-stock-music/tag/wedding/) (pista `657.mp3`, 2:26 min, 4,7 MB). Música de prueba de piano y arpa, sin modificaciones. Empieza al terminar el sonido del sobre, desde los primeros compases audibles, a volumen bajo; el visitante puede pausarla. La [licencia gratuita de música de Mixkit](https://mixkit.co/license/modal/musicFree/) permite su uso en proyectos web. |
