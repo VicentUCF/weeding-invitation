@@ -10,13 +10,13 @@ test('private pages require access and unknown invitation links stay private', a
 });
 
 test('the couple creates a link, guests respond, and the couple can control access', async ({ page }) => {
-  test.skip(!process.env.WEDDING_E2E_PASSWORD, 'Requires a disposable PostgreSQL database and local admin credentials');
+  test.skip(!process.env.WEDDING_E2E_EMAIL || !process.env.WEDDING_E2E_PASSWORD, 'Requires a disposable Supabase project and an authorized Auth user');
   const unique = Date.now().toString();
   const first = `María ${unique}`;
   const second = `Pablo ${unique}`;
 
   await page.goto('/admin/login');
-  await page.getByLabel('Correu electrònic').fill(process.env.WEDDING_E2E_EMAIL || 'test@example.com');
+  await page.getByLabel('Correu electrònic').fill(process.env.WEDDING_E2E_EMAIL!);
   await page.getByLabel('Contrasenya').fill(process.env.WEDDING_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Entra' }).click();
   await expect(page.getByRole('heading', { name: 'Invitacions i respostes' })).toBeVisible();

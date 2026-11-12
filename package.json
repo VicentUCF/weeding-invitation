@@ -18,7 +18,6 @@
     "build": "astro build",
     "check": "astro check",
     "test": "vitest run",
-    "admin:password": "node scripts/create-admin-password.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

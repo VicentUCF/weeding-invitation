@@ -15,21 +15,23 @@ El envío del enlace se hace desde el canal que elijan los novios. El botón de 
 
 ## Arranque local
 
-Requiere Node.js 24.15.0 (Volta) o 22.23.4 o superior y PostgreSQL. En este equipo se recomienda usar Volta:
+Requiere Node.js 24.15.0 (Volta) o 22.23.4 o superior y un proyecto Supabase exclusivo para la boda. En este equipo se recomienda usar Volta:
 
 ```sh
 volta run --node 24.15.0 npm install
 ```
 
-1. Crea una base de datos PostgreSQL **exclusiva para la boda** y aplica `db/schema.sql` con un usuario propietario de la base. Vuelve a aplicarlo si ya existía la base: añade los grupos, idiomas, mensajes ucranianos, observaciones y reservas de autobús sin borrar las invitaciones anteriores (quedan en español). Aplica el esquema antes de desplegar cambios que lean la respuesta y el trayecto del autobús. Las respuestas anteriores con plaza reservada conservan el trayecto sin especificar hasta que el invitado lo indique.
+1. Crea un proyecto Supabase **exclusivo para la boda**. Aplica `db/schema.sql` a su PostgreSQL desde el editor SQL de Supabase o con `psql` y la URI de conexión directa o del *Session pooler* obtenida en **Connect**. El esquema es privado y puede volver a aplicarse para añadir las columnas nuevas sin borrar invitaciones anteriores. Para la aplicación desplegada en Vercel, utiliza en cambio la URI del *Transaction pooler* (puerto 6543): cada instancia abre como máximo una conexión.
 
    ```sh
-   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+   psql "$SUPABASE_MIGRATION_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
    ```
 
-2. Copia `.env.example` a `.env.local`. Rellena `DATABASE_URL` y `PUBLIC_SITE_URL`. Genera las claves y el hash de contraseña con `npm run admin:password -- 'una contraseña única y larga'` y copia su salida a `.env.local`. Añade `ADMIN_EMAIL`. Si prefieres cuentas independientes para ambos novios, configura Supabase Auth (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `ADMIN_USER_IDS`) y deja vacías las variables `ADMIN_EMAIL`, `ADMIN_PASSWORD_SALT` y `ADMIN_PASSWORD_HASH`. Conserva `INVITATION_LINK_KEY` en ambos casos.
+2. En **Authentication → Users**, crea o invita a cada administrador. Copia sus UUID en `ADMIN_USER_IDS`, separados por comas. El inicio de sesión usa Supabase Auth con correo y contraseña; crear un usuario en Supabase no le da acceso al panel hasta incluir su UUID en esta lista. No habilites registros públicos si solo entrarán los novios.
 
-3. Arranca la app:
+3. Copia `.env.example` a `.env.local`. Rellena `DATABASE_URL` con la URI del *Transaction pooler*, `SUPABASE_URL` con la URL del proyecto, `SUPABASE_PUBLISHABLE_KEY` con la clave publicable, `ADMIN_USER_IDS` y `PUBLIC_SITE_URL`. Genera `INVITATION_LINK_KEY` con `openssl rand -base64 32` y guarda el resultado en `.env.local`. Las variables antiguas `ADMIN_EMAIL`, `ADMIN_PASSWORD_SALT`, `ADMIN_PASSWORD_HASH` y `ADMIN_SESSION_KEY` ya no se usan.
+
+4. Arranca la app:
 
    ```sh
    volta run --node 24.15.0 npm run dev
@@ -37,7 +39,7 @@ volta run --node 24.15.0 npm install
 
 Abre `http://localhost:4321/admin/login`. Antes de compartir invitaciones, revisa `src/config/wedding.ts`, el dominio público y la fecha límite desde el panel. Para producción configura las mismas variables en Vercel y publica el proyecto con el adaptador ya incluido.
 
-**Claves y datos:** `INVITATION_LINK_KEY` cifra los tokens guardados para que el panel pueda volver a mostrar los enlaces. Guárdala de forma segura y estable: si cambia, los enlaces existentes no podrán recuperarse desde el panel. `ADMIN_SESSION_KEY` firma la sesión del acceso local. No subas `.env.local` al repositorio. La base usa el esquema privado `wedding`, sin acceso directo para los roles públicos de Supabase; las operaciones se hacen exclusivamente en el servidor. El CSV contiene datos alimentarios y se descarga solo después de iniciar sesión.
+**Claves y datos:** `INVITATION_LINK_KEY` cifra los tokens guardados para que el panel pueda volver a mostrar los enlaces. Guárdala de forma segura y estable: si cambia, los enlaces existentes no podrán recuperarse desde el panel. No subas `.env.local` ni la URI de PostgreSQL al repositorio. La clave publicable se usa solo para Supabase Auth en el servidor; la aplicación accede a la base mediante `DATABASE_URL`, nunca desde el navegador. La conexión SQL verifica el certificado del servidor con la CA pública de Supabase incluida en `src/lib/prod-ca-2021.crt`. La base usa el esquema privado `wedding`, sin acceso directo para los roles públicos de Supabase. El CSV contiene datos alimentarios y se descarga solo después de iniciar sesión.
 
 ## Comprobaciones
 
@@ -47,10 +49,11 @@ volta run --node 24.15.0 npm run build
 volta run --node 24.15.0 npm test
 ```
 
-Las pruebas de navegador necesitan Chrome/Chromium de Playwright o `PLAYWRIGHT_CHROMIUM_EXECUTABLE` con la ruta a Chrome. La prueba completa del flujo se activa con `WEDDING_E2E_PASSWORD` y debe ejecutarse **solo contra una base de datos desechable**, con credenciales de administrador de prueba:
+Las pruebas de navegador necesitan Chrome/Chromium de Playwright o `PLAYWRIGHT_CHROMIUM_EXECUTABLE` con la ruta a Chrome. La prueba completa del flujo se activa con `WEDDING_E2E_EMAIL` y `WEDDING_E2E_PASSWORD` y debe ejecutarse **solo contra un proyecto Supabase de prueba desechable**, con un usuario Auth cuyo UUID figure en `ADMIN_USER_IDS`:
 
 ```sh
 PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable \
+WEDDING_E2E_EMAIL='admin-de-prueba@example.com' \
 WEDDING_E2E_PASSWORD='contraseña de prueba' \
 volta run --node 24.15.0 npm run test:e2e
 ```

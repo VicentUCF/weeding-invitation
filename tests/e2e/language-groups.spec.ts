@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test('group preset opens a Ukrainian invitation and follows later group changes', async ({ page }) => {
-  test.skip(!process.env.WEDDING_E2E_PASSWORD, 'Requires a disposable PostgreSQL database and local admin credentials');
+  test.skip(!process.env.WEDDING_E2E_EMAIL || !process.env.WEDDING_E2E_PASSWORD, 'Requires a disposable Supabase project and an authorized Auth user');
   const suffix = Date.now().toString();
   const groupName = `Familia ucraniana ${suffix}`;
   const guestName = `Олена ${suffix}`;
 
   await page.goto('/admin/login');
-  await page.getByLabel('Correu electrònic').fill(process.env.WEDDING_E2E_EMAIL || 'test@example.com');
+  await page.getByLabel('Correu electrònic').fill(process.env.WEDDING_E2E_EMAIL!);
   await page.getByLabel('Contrasenya').fill(process.env.WEDDING_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Entra' }).click();
   await expect(page).toHaveURL(/\/admin\/$/);
