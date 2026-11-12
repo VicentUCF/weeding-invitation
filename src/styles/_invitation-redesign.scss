@@ -149,11 +149,11 @@
 .journey__road-shoulder { stroke: #e4dac7; stroke-width: 43; }
 .journey__road-surface { stroke: #5b6e83; stroke-width: 34; }
 .journey__road-centre { stroke: #f8f0dc; stroke-width: 2.5; stroke-dasharray: 10 13; }
-.journey__car-art, .journey__compass-art { position: absolute; overflow: hidden; pointer-events: none; }
-.journey__car-art img, .journey__compass-art img { position: absolute; max-width: none; height: auto; }
-.journey__car-art { z-index: 2; top: 122%; left: 50%; width: clamp(2.5rem, 6vw, 3rem); aspect-ratio: 255 / 575; transform: translate(-50%, -50%) rotate(180deg); }
-.journey__car-art img { top: -16.4%; left: -50%; width: 200%; }
-.has-js .journey__car-art { opacity: 0; }
+.journey__bus-art, .journey__compass-art { position: absolute; overflow: hidden; pointer-events: none; }
+.journey__bus-art img, .journey__compass-art img { position: absolute; max-width: none; height: auto; }
+.journey__bus-art { z-index: 2; top: 122%; left: 50%; width: clamp(2.5rem, 6vw, 3rem); aspect-ratio: 255 / 575; transform: translate(-50%, -50%) rotate(180deg); }
+.journey__bus-art img { top: -12.7%; left: -47.5%; width: 195%; }
+.has-js .journey__bus-art { opacity: 0; }
 .journey__compass-art { top: 55%; left: 3%; width: clamp(6.4rem, 18vw, 8.6rem); aspect-ratio: 200 / 190; opacity: .9; clip-path: polygon(0 0, 100% 0, 100% 63%, 62% 63%, 62% 100%, 0 100%); }
 .journey__compass-art img { top: -337%; left: -40%; width: 691.5%; }
 .journey__olive-grove, .journey__cypress-grove { position: absolute; z-index: 0; height: auto; pointer-events: none; }
@@ -324,7 +324,7 @@
   .has-js .journey__road-mask { stroke-dasharray: none; stroke-dashoffset: 0; }
   .has-js .journey__road-start-mask { opacity: 1; }
   .has-js .journey__road-end-mask { opacity: 1; }
-  .has-js .journey__car-art { opacity: 1; }
+  .has-js .journey__bus-art { opacity: 1; }
   .has-js.scroll-reveal-ready .invitation .venue-card[data-scroll-reveal]:not(.is-visible) { opacity: 1; transform: none; }
   .has-js.journey-card-motion .venue-card[data-journey-card] { opacity: 1; transform: none; transition: none; }
   .has-js.journey-card-motion .venue-card[data-journey-card] .venue-card__art--facade { opacity: 1; transition: none; }

@@ -88,7 +88,7 @@ test('opens the sealed envelope and reveals the configured event', async ({ page
   await expect.poll(() => page.locator('.venue-card__art--aerial img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
 });
 
-test('draws the road from Xeraco to the arrival pin as the car moves', async ({ page }, testInfo) => {
+test('draws the road from Xeraco to the arrival pin as the bus moves', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Entra sense animació' }).click();
   const mobileLandscape = page.locator('.journey__landscape-mobile');
@@ -138,21 +138,21 @@ test('draws the road from Xeraco to the arrival pin as the car moves', async ({ 
   });
   await expect.poll(() => page.locator('[data-route-mask]').evaluate((mask: SVGPathElement) => Number(mask.style.strokeDashoffset))).toBeLessThan(2);
   await expect(page.locator('[data-route-end-mask]')).toHaveCSS('opacity', '1');
-  await expect(page.locator('[data-journey-car]')).toHaveCSS('opacity', '1');
-  const parkedCar = await page.evaluate(() => {
+  await expect(page.locator('[data-journey-bus]')).toHaveCSS('opacity', '1');
+  const parkedBus = await page.evaluate(() => {
     const road = document.querySelector<SVGSVGElement>('.journey__roadline')!.getBoundingClientRect();
     const path = document.querySelector<SVGPathElement>('[data-route-path]')!;
     const parkingPoint = path.getPointAtLength(path.getTotalLength());
-    const car = document.querySelector<HTMLElement>('[data-journey-car]')!.getBoundingClientRect();
-    return { horizontalGap: Math.abs(car.left + car.width / 2 - (road.left + parkingPoint.x / 500 * road.width)), verticalGap: Math.abs(car.top + car.height / 2 - (road.top + parkingPoint.y / 1220 * road.height)) };
+    const bus = document.querySelector<HTMLElement>('[data-journey-bus]')!.getBoundingClientRect();
+    return { horizontalGap: Math.abs(bus.left + bus.width / 2 - (road.left + parkingPoint.x / 500 * road.width)), verticalGap: Math.abs(bus.top + bus.height / 2 - (road.top + parkingPoint.y / 1220 * road.height)) };
   });
-  expect(parkedCar.horizontalGap).toBeLessThan(3);
-  expect(parkedCar.verticalGap).toBeLessThan(3);
-  await expect(page.locator('[data-journey-car] img')).toHaveAttribute('src', '/images/car-top-view.webp');
+  expect(parkedBus.horizontalGap).toBeLessThan(3);
+  expect(parkedBus.verticalGap).toBeLessThan(3);
+  await expect(page.locator('[data-journey-bus] img')).toHaveAttribute('src', '/images/bus-top-view.webp');
   await expect(page.locator('.journey__compass-art img')).toHaveAttribute('src', '/images/galim-aerial-sheet.webp');
 });
 
-test('carries the car past L’Olleria and the venue illustration into the location card', async ({ page }) => {
+test('carries the bus past L’Olleria and the venue illustration into the location card', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Entra sense animació' }).click();
   await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; });
@@ -170,14 +170,14 @@ test('carries the car past L’Olleria and the venue illustration into the locat
     const progress = Math.max(0, Math.min(1, (window.innerHeight * .72 - road.getBoundingClientRect().top) / road.getBoundingClientRect().height));
     return Math.abs(path.getTotalLength() * (1 - progress) - Number(mask.style.strokeDashoffset));
   })).toBeLessThan(2);
-  await expect(page.locator('[data-journey-car]')).toHaveCSS('opacity', '1');
+  await expect(page.locator('[data-journey-bus]')).toHaveCSS('opacity', '1');
   const arrival = await page.evaluate(() => {
-    const car = document.querySelector('[data-journey-car]')!.getBoundingClientRect();
+    const bus = document.querySelector('[data-journey-bus]')!.getBoundingClientRect();
     const pin = document.querySelector('.journey__arrival-pin')!.getBoundingClientRect();
     const label = document.querySelector('.journey__destination .journey__place')!.getBoundingClientRect();
-    return { carBelowPin: car.top + car.height / 2 > pin.top + pin.height / 2, labelClearance: label.left - (pin.left + pin.width / 2) };
+    return { busBelowPin: bus.top + bus.height / 2 > pin.top + pin.height / 2, labelClearance: label.left - (pin.left + pin.width / 2) };
   });
-  expect(arrival.carBelowPin).toBe(true);
+  expect(arrival.busBelowPin).toBe(true);
   expect(arrival.labelClearance).toBeGreaterThan(35);
 
   const scrollThroughHandoff = async (progress: number) => page.evaluate((progress) => {

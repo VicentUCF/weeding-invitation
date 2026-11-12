@@ -264,14 +264,14 @@ const c = t(locale);
     const routeStartMask = journey?.querySelector<SVGCircleElement>('[data-route-start-mask]');
     const routeEndMask = journey?.querySelector<SVGCircleElement>('[data-route-end-mask]');
     const roadLine = journey?.querySelector<SVGSVGElement>('.journey__roadline');
-    const car = journey?.querySelector<HTMLElement>('[data-journey-car]');
+    const bus = journey?.querySelector<HTMLElement>('[data-journey-bus]');
     const venuePreview = journey?.querySelector<HTMLElement>('[data-journey-preview]');
     const venuePreviewImage = venuePreview?.querySelector<HTMLImageElement>('img');
     const venueCard = document.querySelector<HTMLElement>('[data-journey-card]');
     const venueHeading = document.querySelector<HTMLElement>('[data-journey-heading]');
     const venueArt = venueCard?.querySelector<HTMLElement>('.venue-card__art--aerial');
     const handoff = document.querySelector<HTMLElement>('[data-journey-art-handoff]');
-    if (journey && routePath && routeMask && routeStartMask && routeEndMask && roadLine && car) {
+    if (journey && routePath && routeMask && routeStartMask && routeEndMask && roadLine && bus) {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       const steps = [...journey.querySelectorAll<HTMLElement>('[data-journey-step]')];
       if ('IntersectionObserver' in window && !reduceMotion.matches) {
@@ -293,10 +293,10 @@ const c = t(locale);
           routeMask.style.removeProperty('stroke-dashoffset');
           routeStartMask.style.removeProperty('opacity');
           routeEndMask.style.removeProperty('opacity');
-          car.style.removeProperty('opacity');
-          car.style.removeProperty('left');
-          car.style.removeProperty('top');
-          car.style.removeProperty('transform');
+          bus.style.removeProperty('opacity');
+          bus.style.removeProperty('left');
+          bus.style.removeProperty('top');
+          bus.style.removeProperty('transform');
           html.classList.remove('journey-card-motion');
           venuePreviewImage?.style.removeProperty('opacity');
           handoff?.style.removeProperty('opacity');
@@ -314,10 +314,10 @@ const c = t(locale);
         const next = routePath.getPointAtLength(Math.min(length, length * progress + 2));
         const previous = routePath.getPointAtLength(Math.max(0, length * progress - 2));
         const angle = Math.atan2((next.y - previous.y) * bounds.height / 1220, (next.x - previous.x) * bounds.width / 500) * 180 / Math.PI + 90;
-        car.style.left = `${point.x / 500 * 100}%`;
-        car.style.top = `${point.y / 1000 * 100}%`;
-        car.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
-        car.style.opacity = progress > .005 ? '1' : '0';
+        bus.style.left = `${point.x / 500 * 100}%`;
+        bus.style.top = `${point.y / 1000 * 100}%`;
+        bus.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+        bus.style.opacity = progress > .005 ? '1' : '0';
 
         if (venuePreview && venuePreviewImage && venueCard && venueArt && handoff) {
           html.classList.add('journey-card-motion');

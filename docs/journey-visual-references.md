@@ -9,4 +9,4 @@ La carta física de Jose i Anas sigue siendo la referencia de contenido, colores
 | [Giuliano Giudansky · Mapa de Fonterutoli](https://www.giudansky.com/illustration/map-of-fonterutoli) | Colocar pequeños grupos de árboles junto a los tramos de carretera y dejar la ruta legible. |
 | [Jenny Lemoine · Wedding Maps](https://jennylemoinedesign.com/wedding-maps) | Usar la brújula como anotación cartográfica y reservar el lugar de celebración como hito final. |
 
-En la web: olivos en el exterior de la primera gran curva; señal CV-60 en el tramo central; brújula junto al siguiente recodo; cipreses cerca de L’Olleria. La carretera, el coche y la línea de revelado comparten un único trazado SVG.
+En la web: olivos en el exterior de la primera gran curva; señal CV-60 en el tramo central; brújula junto al siguiente recodo; cipreses cerca de L’Olleria. La carretera, el autobús y la línea de revelado comparten un único trazado SVG.
