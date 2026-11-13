@@ -132,3 +132,7 @@ export function renderAdminCharts() {
     });
   }
 }
+
+export function destroyAdminCharts(root: ParentNode) {
+  root.querySelectorAll<HTMLCanvasElement>('canvas[data-chart]').forEach((canvas) => Chart.getChart(canvas)?.destroy());
+}

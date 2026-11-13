@@ -1,9 +1,10 @@
 ---
 import '../styles/main.scss';
+import { ClientRouter } from 'astro:transitions';
 import { wedding } from '../config/wedding';
 import { htmlLang, t, type Locale } from '../lib/i18n';
-interface Props { title?: string; privatePage?: boolean; preview?: boolean; locale?: Locale }
-const { privatePage = false, preview = false, locale = 'es' } = Astro.props;
+interface Props { title?: string; privatePage?: boolean; preview?: boolean; locale?: Locale; clientNavigation?: boolean }
+const { privatePage = false, preview = false, locale = 'es', clientNavigation = false } = Astro.props;
 const c = t(locale);
 const title = Astro.props.title ?? `${c.title} ${wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}`;
 if (privatePage) {
@@ -21,6 +22,7 @@ if (privatePage) {
     {privatePage && <meta name="referrer" content="no-referrer" />}
     <meta name="description" content={c.description} />
     <title>{title}</title>
+    {clientNavigation && <ClientRouter fallback="swap" />}
   </head>
   <body>
     <a class="skip-link" href="#main">{c.skip}</a>

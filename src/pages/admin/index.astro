@@ -1,6 +1,8 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from '../../components/admin/AdminNav.astro';
+import AdminShellHeader from '../../components/admin/AdminShellHeader.astro';
+import DashboardPeopleTable from '../../components/admin/DashboardPeopleTable.astro';
 import { requireAdmin, signOut } from '../../lib/auth.server';
 import { sameOrigin } from '../../lib/security.server';
 import { listInvitations, listGroups } from '../../lib/invitations.server';
@@ -70,10 +72,16 @@ const busBars = [
   ...(busWithoutRouteRows.length ? [{ label: 'Sense trajecte', value: busWithoutRouteRows.length, tone: 'missing' }] : []),
 ];
 const routeName = (route: string | null) => route === 'outbound' ? 'Només anada' : route === 'return' ? 'Només tornada' : route === 'both' ? 'Anada i tornada' : 'Sense trajecte';
+const toTableRows = (items: typeof activeRows, detail: (guest: (typeof activeRows)[number]['guest']) => string) => items.map(({ invitation, guest }) => ({
+  name: guest.name,
+  addressee: invitation.addressee,
+  detail: detail(guest),
+  href: `/admin/invitations/${invitation.id}`,
+}));
 ---
-<BaseLayout title="Dashboard · Boda" privatePage>
+<BaseLayout title="Dashboard · Boda" privatePage clientNavigation>
   <div class="admin-shell">
-    <header class="admin-header"><div><p class="eyebrow">Espai dels nuvis</p><h1>Dashboard</h1><p>Resum de les invitacions i respostes</p></div><form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form></header>
+    <AdminShellHeader />
     <AdminNav active="resum" />
     {error && <p class="form-message form-message--error" role="alert">{error} <a href={Astro.url.pathname + Astro.url.search}>Torna a provar-ho</a></p>}
     {!error && <main class="dashboard" data-dashboard>
@@ -139,10 +147,10 @@ const routeName = (route: string | null) => route === 'outbound' ? 'Només anada
       <div class="dashboard-dialog__body">
         <div class="dashboard-dialog__stats"><div><strong>{summary.accepted}</strong><span>Assistiran</span></div><div><strong>{summary.allergies}</strong><span>Amb al·lèrgies indicades</span></div><div><strong>{foodNotesRows.length}</strong><span>Amb observacions</span></div></div>
         <section class="dashboard-dialog__section" aria-labelledby="food-allergy-title"><h3 id="food-allergy-title">Al·lèrgies i intoleràncies</h3>
-          {foodRows.length ? <ul class="dashboard-dialog__list">{foodRows.map(({ invitation, guest }) => <li><div><strong>{guest.name}</strong><small>{invitation.addressee}</small></div><p>{guest.allergies}</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació →</a></li>)}</ul> : <p class="dashboard-dialog__empty">Cap persona assistent ha indicat al·lèrgies o intoleràncies.</p>}
+          {foodRows.length ? <DashboardPeopleTable headingId="food-allergy-title" detailHeading="Al·lèrgies" rows={toTableRows(foodRows, (guest) => guest.allergies)} /> : <p class="dashboard-dialog__empty">Cap persona assistent ha indicat al·lèrgies o intoleràncies.</p>}
         </section>
         <section class="dashboard-dialog__section" aria-labelledby="food-notes-title"><h3 id="food-notes-title">Altres observacions</h3>
-          {foodNotesRows.length ? <ul class="dashboard-dialog__list">{foodNotesRows.map(({ invitation, guest }) => <li><div><strong>{guest.name}</strong><small>{invitation.addressee}</small></div><p>{guest.observations}</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació →</a></li>)}</ul> : <p class="dashboard-dialog__empty">No hi ha altres observacions de les persones assistents.</p>}
+          {foodNotesRows.length ? <DashboardPeopleTable headingId="food-notes-title" detailHeading="Observacions" rows={toTableRows(foodNotesRows, (guest) => guest.observations)} /> : <p class="dashboard-dialog__empty">No hi ha altres observacions de les persones assistents.</p>}
         </section>
       </div>
     </dialog>}
@@ -152,23 +160,37 @@ const routeName = (route: string | null) => route === 'outbound' ? 'Només anada
         <div class="dashboard-dialog__stats"><div><strong>{summary.busTotal}</strong><span>Places reservades</span></div><div><strong>{busNoRows.length}</strong><span>No necessiten plaça</span></div><div><strong>{busPendingRows.length}</strong><span>Sense resposta</span></div></div>
         <section class="dashboard-dialog__section" aria-labelledby="bus-routes-title"><h3 id="bus-routes-title">Trajectes reservats</h3><dl class="dashboard-dialog__routes">{busBars.map((item) => <div><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl></section>
         <section class="dashboard-dialog__section" aria-labelledby="bus-reserved-title"><h3 id="bus-reserved-title">Persones amb plaça</h3>
-          {busRows.length ? <ul class="dashboard-dialog__list">{busRows.map(({ invitation, guest }) => <li><div><strong>{guest.name}</strong><small>{invitation.addressee}</small></div><p>{routeName(guest.bus_route)}</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació →</a></li>)}</ul> : <p class="dashboard-dialog__empty">Encara no hi ha places reservades.</p>}
+          {busRows.length ? <DashboardPeopleTable headingId="bus-reserved-title" detailHeading="Trajecte" rows={toTableRows(busRows, (guest) => routeName(guest.bus_route))} /> : <p class="dashboard-dialog__empty">Encara no hi ha places reservades.</p>}
         </section>
-        {busPendingRows.length > 0 && <section class="dashboard-dialog__section" aria-labelledby="bus-pending-title"><h3 id="bus-pending-title">Pendent de resposta sobre l'autobús</h3><ul class="dashboard-dialog__list">{busPendingRows.map(({ invitation, guest }) => <li><div><strong>{guest.name}</strong><small>{invitation.addressee}</small></div><p>Sense resposta</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació →</a></li>)}</ul></section>}
-        {busNoRows.length > 0 && <section class="dashboard-dialog__section" aria-labelledby="bus-no-title"><h3 id="bus-no-title">No necessiten plaça</h3><ul class="dashboard-dialog__list">{busNoRows.map(({ invitation, guest }) => <li><div><strong>{guest.name}</strong><small>{invitation.addressee}</small></div><p>No necessita autobús</p><a href={`/admin/invitations/${invitation.id}`}>Gestiona la invitació →</a></li>)}</ul></section>}
+        {busPendingRows.length > 0 && <section class="dashboard-dialog__section" aria-labelledby="bus-pending-title"><h3 id="bus-pending-title">Pendent de resposta sobre l'autobús</h3><DashboardPeopleTable headingId="bus-pending-title" detailHeading="Estat" rows={toTableRows(busPendingRows, () => 'Sense resposta')} /></section>}
+        {busNoRows.length > 0 && <section class="dashboard-dialog__section" aria-labelledby="bus-no-title"><h3 id="bus-no-title">No necessiten plaça</h3><DashboardPeopleTable headingId="bus-no-title" detailHeading="Estat" rows={toTableRows(busNoRows, () => 'No necessita autobús')} /></section>}
       </div>
     </dialog>}
   </div>
 </BaseLayout>
 
 <script>
-  if (document.querySelector('[data-dashboard] canvas[data-chart]')) {
-    import('../../lib/admin-dashboard.client').then(({ renderAdminCharts }) => renderAdminCharts());
-  }
-  document.querySelectorAll<HTMLButtonElement>('[data-dashboard-dialog-open]').forEach((button) => {
-    const dialog = document.querySelector<HTMLDialogElement>(`[data-dashboard-dialog="${button.dataset.dashboardDialogOpen}"]`);
-    if (!dialog) return;
-    button.addEventListener('click', () => dialog.showModal());
-    dialog.querySelector<HTMLButtonElement>('[data-dashboard-dialog-close]')?.addEventListener('click', () => dialog.close());
-  });
+  let mountedDashboard: HTMLElement | null = null;
+  let charts: typeof import('../../lib/admin-dashboard.client') | undefined;
+  const mountDashboard = () => {
+    const nextDashboard = document.querySelector<HTMLElement>('[data-dashboard]');
+    if (nextDashboard === mountedDashboard) return;
+    if (mountedDashboard && charts) charts.destroyAdminCharts(mountedDashboard);
+    mountedDashboard = nextDashboard;
+    if (!nextDashboard) return;
+    if (nextDashboard.querySelector('canvas[data-chart]')) {
+      import('../../lib/admin-dashboard.client').then((module) => {
+        charts = module;
+        if (mountedDashboard === nextDashboard && nextDashboard.isConnected) module.renderAdminCharts();
+      });
+    }
+    document.querySelectorAll<HTMLButtonElement>('[data-dashboard-dialog-open]').forEach((button) => {
+      const dialog = document.querySelector<HTMLDialogElement>(`[data-dashboard-dialog="${button.dataset.dashboardDialogOpen}"]`);
+      if (!dialog) return;
+      button.addEventListener('click', () => dialog.showModal());
+      dialog.querySelector<HTMLButtonElement>('[data-dashboard-dialog-close]')?.addEventListener('click', () => dialog.close());
+    });
+  };
+  document.addEventListener('astro:page-load', mountDashboard);
+  mountDashboard();
 </script>

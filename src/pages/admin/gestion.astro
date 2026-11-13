@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminNav from '../../components/admin/AdminNav.astro';
+import AdminShellHeader from '../../components/admin/AdminShellHeader.astro';
 import AdminInvitationResults from '../../components/admin/AdminInvitationResults.astro';
 import AdminGroupsSection from '../../components/admin/AdminGroupsSection.astro';
 import AdminSettingsSection from '../../components/admin/AdminSettingsSection.astro';
@@ -127,12 +128,9 @@ try {
 const defaultGroup = groups.find((group) => group.name === 'Valencia');
 const view = !viewParam && error && submittedName ? 'nova' : requestedView;
 ---
-<BaseLayout title="Configuració i gestió · Boda" privatePage>
+<BaseLayout title="Configuració i gestió · Boda" privatePage clientNavigation>
   <div class="admin-shell" data-admin-revision={dataRevision} data-admin-scope={revisionScope}>
-    <header class="admin-header">
-      <div><p class="eyebrow">Espai dels nuvis</p><h1>Configuració i gestió</h1></div>
-      <form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form>
-    </header>
+    <AdminShellHeader />
     <AdminNav active={view === 'grups' ? 'grups' : view === 'ajustos' ? 'ajustos' : 'invitacions'} />
     <p class="form-message" data-admin-feedback role="status" hidden></p>
     {error && view !== 'nova' && <p class="form-message form-message--error" role="alert">{error}</p>}
@@ -156,7 +154,7 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
     {(view === 'invitacions' || view === 'nova') && <dialog class="admin-dialog" aria-labelledby="new-title" open={view === 'nova'} data-invitation-dialog>
       <div class="admin-dialog__heading"><div><p class="eyebrow">Prepara</p><h2 id="new-title">Nova invitació</h2></div><a href="/admin/gestion" data-close-invitation aria-label="Tanca el formulari">Tanca ×</a></div>
       {error && view === 'nova' && <p class="form-message form-message--error" role="alert">{error}</p>}
-      <form method="post" action="/admin/gestion?view=nova" class="admin-form admin-form--wide"><input type="hidden" name="action" value="create" />
+      <form method="post" action="/admin/gestion?view=nova" class="admin-form admin-form--wide" data-astro-reload><input type="hidden" name="action" value="create" />
         <label for="name">Nom</label><input id="name" name="name" maxlength="160" required autocomplete="name" value={submittedName} placeholder="Per exemple: Maria" />
         <label for="groupId">Grup</label><select id="groupId" name="groupId" required>{groups.map((group) => <option value={group.id} selected={group.id === (submittedGroup || defaultGroup?.id)}>{group.name} · {localeName[group.locale]}</option>)}</select>
         <button class="button button--primary" type="submit">Crea la invitació i l’enllaç</button>
@@ -184,6 +182,16 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
     {view === 'ajustos' && <AdminSettingsSection config={config} />}
   </div>
   <script>
+    let mountedShell: HTMLElement | null = null;
+    let disposeManagement: (() => void) | undefined;
+    const mountManagement = () => {
+    const nextShell = document.querySelector<HTMLElement>('.admin-shell[data-admin-scope]');
+    if (nextShell === mountedShell) return;
+    disposeManagement?.();
+    mountedShell = nextShell;
+    if (!nextShell) return;
+    const lifecycle = new AbortController();
+    const { signal } = lifecycle;
     const actionDialogs = {
       view: document.querySelector<HTMLDialogElement>('[data-action-dialog="view"]'),
       edit: document.querySelector<HTMLDialogElement>('[data-action-dialog="edit"]'),
@@ -253,13 +261,13 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
         if (confirmation) confirmation.value = '';
       }
       dialog.showModal();
-    });
+    }, { signal });
     document.querySelectorAll<HTMLButtonElement>('[data-close-modal]').forEach((button) => button.addEventListener('click', () => button.closest('dialog')?.close()));
     const results = document.querySelector<HTMLElement>('[data-management-results]');
     const filters = document.querySelector<HTMLFormElement>('.admin-management-filters');
     const status = document.querySelector<HTMLElement>('[data-copy-status]');
     const feedback = document.querySelector<HTMLElement>('[data-admin-feedback]');
-    const shell = document.querySelector<HTMLElement>('.admin-shell');
+    const shell = nextShell;
     const announce = (message: string, error = false) => {
       if (!feedback) return;
       feedback.hidden = false;
@@ -452,14 +460,14 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
     };
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) { pageCache.clear(); sectionCache.clear(); void checkRevision(); }
-    });
+    }, { signal });
     window.addEventListener('storage', (event) => {
       if (event.key !== 'wedding.admin.changed') return;
       pageCache.clear();
       sectionCache.clear();
       if (!document.hidden) void checkRevision();
-    });
-    window.setInterval(() => { void checkRevision(); }, 60000);
+    }, { signal });
+    const revisionPoll = window.setInterval(() => { void checkRevision(); }, 60000);
     shell?.addEventListener('submit', async (event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.closest('[data-admin-groups], [data-admin-settings]')) return;
@@ -529,12 +537,11 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
     });
     window.addEventListener('popstate', () => {
       const url = new URL(location.href);
-      if (url.pathname !== '/admin/gestion') { location.reload(); return; }
+      if (url.pathname !== '/admin/gestion') return;
       if (url.searchParams.get('view') === 'grups' && document.querySelector('[data-admin-groups]')) { navigateSection('groups', url, 'pop'); return; }
       if (url.searchParams.get('view') === 'ajustos' && document.querySelector('[data-admin-settings]')) { navigateSection('settings', url, 'pop'); return; }
-      if (['grups', 'ajustos'].includes(url.searchParams.get('view') ?? '')) { location.reload(); return; }
-      navigateResults(url, 'pop');
-    });
+      if (!['grups', 'ajustos'].includes(url.searchParams.get('view') ?? '') && results) navigateResults(url, 'pop');
+    }, { signal });
     results?.addEventListener('change', async (event) => {
       const checkbox = event.target;
       if (!(checkbox instanceof HTMLInputElement) || checkbox.name !== 'sent') return;
@@ -587,5 +594,14 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
       try { await navigator.clipboard.writeText(message); const label = button.querySelector<HTMLElement>('[data-copy-label]'); if (label) label.textContent = 'Missatge copiat'; status.textContent = 'Missatge amb enllaç copiat.'; }
       catch { window.prompt('Copia este missatge:', message); status.textContent = 'Copia el missatge del quadre de diàleg.'; }
     });
+    disposeManagement = () => {
+      lifecycle.abort();
+      window.clearInterval(revisionPoll);
+      request?.abort();
+      sectionRequest?.abort();
+    };
+    };
+    document.addEventListener('astro:page-load', mountManagement);
+    mountManagement();
   </script>
 </BaseLayout>

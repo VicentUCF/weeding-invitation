@@ -1,0 +1,31 @@
+---
+interface Row {
+  name: string;
+  addressee: string;
+  detail: string;
+  href: string;
+}
+
+interface Props {
+  headingId: string;
+  detailHeading: string;
+  rows: Row[];
+}
+
+const { headingId, detailHeading, rows } = Astro.props;
+---
+<div class="dashboard-dialog__table-scroll" role="region" aria-labelledby={headingId} tabindex="0">
+  <table class="dashboard-dialog__table">
+    <thead>
+      <tr><th scope="col">Persona</th><th scope="col">Invitació</th><th scope="col">{detailHeading}</th><th scope="col">Acció</th></tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => <tr>
+        <th scope="row">{row.name}</th>
+        <td>{row.addressee}</td>
+        <td class="dashboard-dialog__table-detail">{row.detail}</td>
+        <td><a href={row.href} aria-label={`Gestiona la invitació de ${row.name}`}>Gestiona →</a></td>
+      </tr>)}
+    </tbody>
+  </table>
+</div>

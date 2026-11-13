@@ -8,6 +8,21 @@ const sections = [
   { id: 'ajustos', label: 'Configuració', href: '/admin/gestion?view=ajustos' },
 ] as const;
 ---
-<nav class="admin-nav admin-nav--tabs" aria-label="Seccions de l'administració">
-  {sections.map((section) => <a href={section.href} aria-current={section.id === active ? 'page' : undefined}>{section.label}</a>)}
+<nav class="admin-nav admin-nav--tabs" aria-label="Seccions de l'administració" transition:persist="admin-shell-nav">
+  {sections.map((section) => <a href={section.href} data-admin-section={section.id} aria-current={section.id === active ? 'page' : undefined}>{section.label}</a>)}
 </nav>
+
+<script>
+  const updateAdminNav = () => {
+    const nav = document.querySelector<HTMLElement>('.admin-nav--tabs');
+    if (!nav) return;
+    const view = new URLSearchParams(location.search).get('view');
+    const active = location.pathname === '/admin/' || location.pathname === '/admin' ? 'resum' : view === 'grups' ? 'grups' : view === 'ajustos' ? 'ajustos' : 'invitacions';
+    for (const link of nav.querySelectorAll<HTMLAnchorElement>('a')) {
+      if (link.dataset.adminSection === active) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+  };
+  document.addEventListener('astro:after-swap', updateAdminNav);
+  updateAdminNav();
+</script>
