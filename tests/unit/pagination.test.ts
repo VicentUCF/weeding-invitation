@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paginateItems } from '../../src/lib/pagination';
+import { paginateItems, paginationForTotal } from '../../src/lib/pagination';
 
 describe('paginateItems', () => {
   const items = Array.from({ length: 300 }, (_, index) => index + 1);
@@ -16,5 +16,9 @@ describe('paginateItems', () => {
 
   it('keeps empty results on the first page', () => {
     expect(paginateItems([], '7')).toMatchObject({ items: [], page: 1, pageCount: 1, total: 0, start: 0, end: 0 });
+  });
+
+  it('calculates the same page metadata from a database count', () => {
+    expect(paginationForTotal(122, '99')).toMatchObject({ page: 7, pageCount: 7, total: 122, start: 121, end: 122, offset: 120 });
   });
 });

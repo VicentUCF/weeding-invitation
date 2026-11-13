@@ -1,0 +1,25 @@
+---
+import AdminInvitationResults from '../../../components/admin/AdminInvitationResults.astro';
+import { requireAdmin } from '../../../lib/auth.server';
+import { invitationFilters } from '../../../lib/admin-management';
+import { listGroups, listInvitationsPage } from '../../../lib/invitations.server';
+import { localeName } from '../../../lib/i18n';
+
+export const prerender = false;
+export const partial = true;
+if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+const filters = invitationFilters(Astro.url);
+const includeGroups = Astro.url.searchParams.get('groups') === '1';
+const [page, groups] = await Promise.all([
+  listInvitationsPage(filters, Astro.url.searchParams.get('page')),
+  includeGroups ? listGroups() : Promise.resolve([]),
+]);
+---
+<AdminInvitationResults page={page} filters={filters} origin={Astro.url.origin} />
+{includeGroups && <template data-management-group-options>
+  <select data-filter-options><option value="all">Tots</option><option value="none">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name}</option>)}</select>
+  <select data-edit-options><option value="">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>
+  <select data-create-options>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>
+</template>}

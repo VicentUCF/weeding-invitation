@@ -2,6 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { db } from './db.server';
 import { env } from './env.server';
 import { hashToken, makeToken } from './tokens';
+import { ADMIN_PAGE_SIZE, paginationForTotal } from './pagination';
+import type { InvitationListFilters } from './admin-management';
 import type { Locale } from './i18n';
 
 export type ResponseStatus = 'pending' | 'yes' | 'no';
@@ -62,16 +64,79 @@ export async function updateGroup(id: string, name: string, locale: Locale) {
   } catch (error) { await client.query('rollback'); throw error; }
   finally { client.release(); }
 }
-async function attachGuests(rows: Omit<Invitation, 'guests'>[]): Promise<Invitation[]> {
+async function attachGuests<T extends Omit<Invitation, 'guests'>>(rows: T[]): Promise<(T & { guests: Guest[] })[]> {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const guests = (await db().query<Guest>('select id, invitation_id, name, response, allergies, observations, bus_seat, bus_route, food_data_consent, responded_at from wedding.guests where invitation_id = any($1::uuid[]) order by invitation_id, sort_order, created_at, id', [ids])).rows;
-  return rows.map((row) => ({ ...row, guests: guests.filter((guest) => guest.invitation_id === row.id) }));
+  const byInvitation = new Map<string, Guest[]>();
+  for (const guest of guests) {
+    const group = byInvitation.get(guest.invitation_id) ?? [];
+    group.push(guest);
+    byInvitation.set(guest.invitation_id, group);
+  }
+  return rows.map((row) => ({ ...row, guests: byInvitation.get(row.id) ?? [] }));
 }
 
 export async function listInvitations() {
   const rows = (await db().query<Omit<Invitation, 'guests'>>(`select ${invitationColumns} from wedding.invitations order by created_at desc, id`)).rows;
   return attachGuests(rows);
+}
+export type AdminRevisionScope = 'list' | 'groups' | 'settings' | 'detail';
+const groupsDigest = "(select coalesce(md5(string_agg(id::text || ':' || name || ':' || locale, '|' order by id)), '') from wedding.invitation_groups)";
+export async function adminDataRevision(scope: AdminRevisionScope, invitationId?: string) {
+  const invitationRevision = "(select count(*)::text || ':' || coalesce(max(updated_at)::text, '') from wedding.invitations)";
+  const guestRevision = "(select count(*)::text || ':' || coalesce(max(updated_at)::text, '') from wedding.guests)";
+  let expression: string;
+  let values: string[] = [];
+  if (scope === 'list') expression = `md5(${invitationRevision} || '|' || ${guestRevision} || '|' || ${groupsDigest})`;
+  else if (scope === 'groups') expression = `md5(${groupsDigest})`;
+  else if (scope === 'settings') expression = "coalesce((select updated_at::text from wedding.settings where id=true), '')";
+  else {
+    if (!invitationId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invitationId)) throw new Error('Invalid invitation ID');
+    expression = `md5(coalesce((select updated_at::text from wedding.invitations where id=$1), 'missing')
+      || '|' || (select count(*)::text || ':' || coalesce(max(updated_at)::text, '') from wedding.guests where invitation_id=$1)
+      || '|' || ${groupsDigest})`;
+    values = [invitationId];
+  }
+  const result = await db().query<{ revision: string }>(`select ${expression} as revision`, values);
+  return result.rows[0]?.revision ?? '';
+}
+export async function listInvitationsPage(filters: InvitationListFilters, rawPage: string | null) {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+  const parameter = (value: unknown) => { values.push(value); return `$${values.length}`; };
+
+  if (filters.search) {
+    const search = parameter(filters.search.toLocaleLowerCase('ca-ES'));
+    conditions.push(`(strpos(lower(i.addressee), ${search}) > 0
+      or strpos(lower(coalesce(i.email, '')), ${search}) > 0
+      or exists (select 1 from wedding.guests search_guest where search_guest.invitation_id = i.id and strpos(lower(search_guest.name), ${search}) > 0))`);
+  }
+  if (filters.status === 'sent') conditions.push('i.sent_at is not null and i.revoked_at is null');
+  if (filters.status === 'unsent') conditions.push('i.sent_at is null and i.revoked_at is null');
+  if (filters.status === 'revoked') conditions.push('i.revoked_at is not null');
+  if (filters.response !== 'all') {
+    const response = parameter(filters.response);
+    conditions.push(`i.revoked_at is null and exists (select 1 from wedding.guests answer where answer.invitation_id = i.id and answer.response = ${response})`);
+  }
+  if (filters.group === 'none') conditions.push('i.group_id is null');
+  else if (filters.group !== 'all') {
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.group)) conditions.push(`i.group_id = ${parameter(filters.group)}::uuid`);
+    else conditions.push('false');
+  }
+
+  const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
+  const count = await db().query<{ total: string }>(`select count(*)::text as total from wedding.invitations i ${where}`, values);
+  const pagination = paginationForTotal(Number(count.rows[0]?.total ?? 0), rawPage);
+  const rows = (await db().query<Omit<Invitation, 'guests'> & { group_name: string | null }>(
+    `select ${invitationColumns.split(', ').map((column) => `i.${column}`).join(', ')}, grp.name as group_name from wedding.invitations i left join wedding.invitation_groups grp on grp.id = i.group_id ${where} order by i.created_at desc, i.id limit $${values.length + 1} offset $${values.length + 2}`,
+    [...values, ADMIN_PAGE_SIZE, pagination.offset],
+  )).rows;
+  return { ...pagination, items: await attachGuests(rows) };
+}
+export async function invitationById(id: string) {
+  const rows = (await db().query<Omit<Invitation, 'guests'>>(`select ${invitationColumns} from wedding.invitations where id = $1`, [id])).rows;
+  return (await attachGuests(rows))[0] ?? null;
 }
 export async function invitationByToken(token: string) {
   const rows = (await db().query<Omit<Invitation, 'guests'>>(`select ${invitationColumns} from wedding.invitations where token_hash = $1 and revoked_at is null`, [hashToken(token)])).rows;
@@ -146,7 +211,7 @@ export async function addGuest(invitationId: string, name: string) {
   await db().query('insert into wedding.guests (invitation_id, name, sort_order) select $1, $2, coalesce(max(sort_order), -1) + 1 from wedding.guests where invitation_id=$1', [invitationId, name]);
 }
 export async function updateGuest(id: string, invitationId: string, input: { name: string; response: ResponseStatus; allergies: string; observations: string; busSeat: boolean | null; busRoute: BusRoute | null; consent: boolean }) {
-  await db().query(`update wedding.guests set name=$3, response=$4, allergies=$5, dietary_notes='', observations=$6, food_data_consent=$7, bus_seat=$8, bus_route=$9, responded_at=case when $4='pending' then null else coalesce(responded_at, now()) end, updated_at=now() where id=$1 and invitation_id=$2`, [id, invitationId, input.name, input.response, input.response === 'yes' ? input.allergies : '', input.response === 'yes' ? input.observations : '', input.response === 'yes' && input.consent, input.busSeat, input.busRoute]);
+  await db().query(`update wedding.guests set name=$3, response=$4::text, allergies=$5, dietary_notes='', observations=$6, food_data_consent=$7, bus_seat=$8, bus_route=$9, responded_at=case when $4::text='pending' then null else coalesce(responded_at, now()) end, updated_at=now() where id=$1 and invitation_id=$2`, [id, invitationId, input.name, input.response, input.response === 'yes' ? input.allergies : '', input.response === 'yes' ? input.observations : '', input.response === 'yes' && input.consent, input.busSeat, input.busRoute]);
 }
 export async function removeGuest(id: string, invitationId: string) {
   await db().query('delete from wedding.guests where id=$1 and invitation_id=$2', [id, invitationId]);
@@ -166,7 +231,7 @@ export async function saveRsvp(invitationId: string, responses: { id: string; re
     const current = await client.query<{ id: string }>('select id from wedding.guests where invitation_id=$1 for update', [invitationId]);
     if (current.rowCount !== responses.length || current.rows.some(({ id }) => !responses.some((response) => response.id === id))) throw new Error('La llista de persones convidades ha canviat');
     for (const response of responses) {
-      await client.query("update wedding.guests set response=$3, allergies=$4, dietary_notes='', observations=case when $3='yes' then observations else '' end, food_data_consent=$5, bus_seat=$6, bus_route=$7, responded_at=now(), updated_at=now() where id=$1 and invitation_id=$2", [response.id, invitationId, response.response, response.response === 'yes' ? response.allergies : '', response.response === 'yes' && response.consent, response.busSeat, response.busRoute]);
+      await client.query("update wedding.guests set response=$3::text, allergies=$4, dietary_notes='', observations=case when $3::text='yes' then observations else '' end, food_data_consent=$5, bus_seat=$6, bus_route=$7, responded_at=now(), updated_at=now() where id=$1 and invitation_id=$2", [response.id, invitationId, response.response, response.response === 'yes' ? response.allergies : '', response.response === 'yes' && response.consent, response.busSeat, response.busRoute]);
     }
     await client.query('commit');
   } catch (error) { await client.query('rollback'); throw error; }

@@ -1,0 +1,6 @@
+---
+import type { Invitation } from '../../lib/invitations.server';
+interface Props { invitation: Invitation }
+const { invitation } = Astro.props;
+---
+<section data-detail-part="danger" class="admin-section admin-section--danger" aria-labelledby="delete-title"><div class="admin-section__heading"><div><p class="eyebrow">Elimina definitivament</p><h2 id="delete-title">Elimina la invitació</h2></div></div><p>S’eliminaran l’enllaç i les respostes de totes les persones d’esta invitació. Esta acció no es pot desfer.</p><form method="post" class="admin-form"><input type="hidden" name="action" value="delete" /><label for="confirmName">Escriu «{invitation.addressee}» per a confirmar</label><input id="confirmName" name="confirmName" autocomplete="off" required /><button type="submit" class="button">Elimina definitivament</button></form></section>

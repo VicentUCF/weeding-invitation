@@ -1,0 +1,13 @@
+---
+import AdminSettingsSection from '../../../components/admin/AdminSettingsSection.astro';
+import { requireAdmin } from '../../../lib/auth.server';
+import { settings } from '../../../lib/invitations.server';
+
+export const prerender = false;
+export const partial = true;
+if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+const config = await settings();
+---
+<AdminSettingsSection config={config} />

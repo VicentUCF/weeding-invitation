@@ -1,0 +1,6 @@
+---
+import type { Settings } from '../../lib/invitations.server';
+interface Props { config: Settings }
+const { config } = Astro.props;
+---
+<main data-admin-settings class="admin-section" aria-labelledby="settings-title"><div class="admin-section__heading"><div><p class="eyebrow">Control</p><h2 id="settings-title">Termini de confirmació</h2></div></div><form method="post" action="/admin/gestion?view=ajustos" class="admin-form"><input type="hidden" name="action" value="settings" /><label class="admin-checkbox"><input type="checkbox" name="enabled" value="yes" checked={config.rsvp_enabled} /> Permet les respostes</label><label for="deadline">Data límit (opcional)</label><input type="date" id="deadline" name="deadline" value={config.rsvp_deadline ?? ''} /><button class="button button--primary" type="submit">Guarda la configuració</button></form></main>

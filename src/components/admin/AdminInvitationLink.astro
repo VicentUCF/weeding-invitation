@@ -1,0 +1,17 @@
+---
+import type { Invitation } from '../../lib/invitations.server';
+interface Props { invitation: Invitation; link: string }
+const { invitation, link } = Astro.props;
+---
+<section data-detail-part="link" class="admin-section" aria-labelledby="enlace-title"><div class="admin-section__heading"><div><p class="eyebrow">Compartix</p><h2 id="enlace-title">Enllaç privat</h2></div></div>
+      <p>Compartix-lo només amb les persones convidades. Qualsevol persona que tinga l’enllaç podrà veure i canviar les respostes.</p>
+      <div class="admin-linkbox"><input id="invitation-link" readonly value={link} aria-label="Enllaç de la invitació" /><button type="button" class="button" data-copy-link>Copia l’enllaç</button></div>
+      <p class="admin-copy-status" data-copy-status role="status"></p>
+      <div class="admin-actions">
+        <a class="button" href={link} target="_blank" rel="noopener noreferrer">Obri la invitació</a>
+        <form method="post"><input type="hidden" name="action" value={invitation.sent_at ? 'unsent' : 'sent'} /><button type="submit" class="button">{invitation.sent_at ? 'Marca com a no enviada' : 'Marca com a enviada'}</button></form>
+        <form method="post" data-confirm="L’enllaç anterior deixarà de funcionar. Vols generar-ne un de nou?"><input type="hidden" name="action" value="rotate" /><button type="submit" class="button">Renova l’enllaç</button></form>
+        <form method="post" data-confirm="Vols revocar esta invitació? L’enllaç deixarà de funcionar fins que el restaures."><input type="hidden" name="action" value={invitation.revoked_at ? 'restore' : 'revoke'} /><button type="submit" class="button">{invitation.revoked_at ? 'Restaura l’enllaç' : 'Revoca l’enllaç'}</button></form>
+      </div>
+      {invitation.email && <p>Correu de referència: <a href={`mailto:${invitation.email}`}>{invitation.email}</a>. L’has d’enviar des del teu correu; ací només registrem l’estat quan el marques.</p>}
+    </section>

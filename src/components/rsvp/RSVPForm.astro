@@ -21,7 +21,7 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
     {saved && <div class="form-message form-message--success" role="status" tabindex="-1"><p>{c.saved}</p><ul>{guests.map((guest) => <li><strong>{guest.name}</strong><span>{guest.response === 'yes' ? c.yes : guest.response === 'no' ? c.no : c.pending}</span></li>)}</ul></div>}
     {error && <p class="form-message form-message--error" role="alert" tabindex="-1" data-form-error>{error}</p>}
     {!open && <p class="form-message">{c.closed}</p>}
-    <form method={preview ? undefined : 'post'} action={token ? `${invitationPath(token, locale)}?lang=${locale}` : undefined} class="rsvp-form" data-rsvp-preview={preview ? '' : undefined}>
+    <form method={preview ? undefined : 'post'} action={token ? `${invitationPath(token, locale)}?lang=${locale}` : undefined} class="rsvp-form" data-rsvp-preview={preview ? '' : undefined} data-rsvp-live={!preview ? '' : undefined} data-saved-message={c.saved} data-save-error={c.rsvpSaveError} data-yes={c.yes} data-no={c.no}>
       {guests.map((guest, index) => (
         <fieldset class="rsvp-form__guest" data-rsvp-guest disabled={!open}>
           <legend><span class="rsvp-form__number">0{index + 1}</span> {guest.name}</legend>
@@ -77,6 +77,52 @@ const value = (name: string, fallback = '') => submitted ? String(submitted.get(
 </section>
 <script>
   document.querySelectorAll<HTMLFormElement>('[data-rsvp-preview]').forEach((form) => form.addEventListener('submit', (event) => event.preventDefault()));
+  document.querySelectorAll<HTMLFormElement>('[data-rsvp-live]').forEach((form) => form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector<HTMLButtonElement>('[type="submit"]');
+    if (!submit || submit.disabled) return;
+    submit.disabled = true;
+    form.setAttribute('aria-busy', 'true');
+    const showResult = (message: string, success: boolean, guests: { name: string; response: 'yes' | 'no' }[] = []) => {
+      form.parentElement?.querySelectorAll('.form-message--success, [data-form-error], [data-rsvp-result]').forEach((item) => item.remove());
+      const notice = document.createElement('div');
+      notice.className = `form-message form-message--${success ? 'success' : 'error'}`;
+      notice.dataset.rsvpResult = '';
+      notice.setAttribute('role', success ? 'status' : 'alert');
+      notice.tabIndex = -1;
+      const paragraph = document.createElement('p');
+      paragraph.textContent = message;
+      notice.append(paragraph);
+      if (success) {
+        const list = document.createElement('ul');
+        for (const guest of guests) {
+          const item = document.createElement('li');
+          const name = document.createElement('strong');
+          const answer = document.createElement('span');
+          name.textContent = guest.name;
+          answer.textContent = guest.response === 'yes' ? form.dataset.yes ?? '' : form.dataset.no ?? '';
+          item.append(name, answer);
+          list.append(item);
+        }
+        notice.append(list);
+      }
+      form.after(notice);
+      notice.focus({ preventScroll: true });
+      notice.scrollIntoView({ block: 'nearest' });
+    };
+    try {
+      const response = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Invalid response');
+      const result = await response.json() as { error?: string; guests?: { name: string; response: 'yes' | 'no' }[] };
+      if (!response.ok) showResult(result.error ?? form.dataset.saveError ?? '', false);
+      else showResult(form.dataset.savedMessage ?? '', true, result.guests ?? []);
+    } catch {
+      showResult(form.dataset.saveError ?? '', false);
+    } finally {
+      form.removeAttribute('aria-busy');
+      submit.disabled = false;
+    }
+  }));
   document.querySelectorAll<HTMLFieldSetElement>('[data-rsvp-guest]').forEach((fieldset) => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const panelAnimations = new WeakMap<HTMLElement, Animation>();

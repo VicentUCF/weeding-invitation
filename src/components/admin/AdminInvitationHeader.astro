@@ -1,0 +1,6 @@
+---
+import type { Invitation } from '../../lib/invitations.server';
+interface Props { invitation: Invitation }
+const { invitation } = Astro.props;
+---
+<header data-detail-part="header" class="admin-header"><div><a class="admin-back" href="/admin/gestion">← Torna a gestió</a><p class="eyebrow">Detall de la invitació</p><h1>{invitation.addressee}</h1></div><span class="admin-pill">{invitation.revoked_at ? 'Enllaç revocat' : invitation.sent_at ? 'Marcada com a enviada' : 'Sense enviar'}</span></header>

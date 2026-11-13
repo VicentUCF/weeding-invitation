@@ -1,18 +1,24 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import AdminIcon from '../../components/admin/AdminIcon.astro';
 import AdminNav from '../../components/admin/AdminNav.astro';
-import AdminPagination from '../../components/admin/AdminPagination.astro';
-import { invitationMessage } from '../../lib/invitation-message';
+import AdminInvitationResults from '../../components/admin/AdminInvitationResults.astro';
+import AdminGroupsSection from '../../components/admin/AdminGroupsSection.astro';
+import AdminSettingsSection from '../../components/admin/AdminSettingsSection.astro';
 import { requireAdmin, signOut } from '../../lib/auth.server';
 import { sameOrigin } from '../../lib/security.server';
-import { listInvitations, listGroups, createGroup, updateGroup, settings, createInvitation, saveSettings, ensureValenciaGroup, invitationToken, updateInvitationState, updateManagedInvitation, deleteInvitation } from '../../lib/invitations.server';
+import { adminDataRevision, listInvitationsPage, invitationById, listGroups, createGroup, updateGroup, settings, createInvitation, saveSettings, ensureValenciaGroup, updateInvitationState, updateManagedInvitation, deleteInvitation } from '../../lib/invitations.server';
 import { formField, requiredField, invitationInput } from '../../lib/forms.server';
-import { invitationPath, localeName, parseLocale } from '../../lib/i18n';
-import { ADMIN_PAGE_SIZE, paginateItems } from '../../lib/pagination';
+import { localeName, parseLocale } from '../../lib/i18n';
+import { invitationFilters } from '../../lib/admin-management';
+import { ADMIN_PAGE_SIZE, paginationForTotal } from '../../lib/pagination';
 
 export const prerender = false;
 if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+const acceptsJson = Astro.request.headers.get('accept') === 'application/json';
+const jsonResponse = (payload: object, status = 200) => new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
+const revisionAfterChange = async (scope: 'list' | 'groups' | 'settings') => {
+  try { return await adminDataRevision(scope); } catch { return undefined; }
+};
 let error = '';
 let submittedName = '';
 let submittedGroup = '';
@@ -34,7 +40,9 @@ if (Astro.request.method === 'POST') {
     if (action === 'delivery') {
       const id = formField(data, 'invitationId');
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('La invitació no és vàlida.');
-      await updateInvitationState(id, formField(data, 'sent') === 'yes' ? 'sent' : 'unsent');
+      const sent = formField(data, 'sent') === 'yes';
+      await updateInvitationState(id, sent ? 'sent' : 'unsent');
+      if (acceptsJson) return jsonResponse({ sent, revision: await revisionAfterChange('list') });
       const next = new URL('/admin/gestion', Astro.url);
       for (const key of ['q', 'status', 'response', 'group', 'page']) {
         const value = Astro.url.searchParams.get(key);
@@ -46,7 +54,7 @@ if (Astro.request.method === 'POST') {
     if (action === 'editInvitation' || action === 'deleteInvitation') {
       const id = formField(data, 'invitationId');
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error('La invitació no és vàlida.');
-      const current = (await listInvitations()).find((invitation) => invitation.id === id);
+      const current = await invitationById(id);
       if (!current) throw new Error('No hem trobat la invitació.');
       if (action === 'editInvitation') {
         const input = invitationInput(data);
@@ -55,6 +63,7 @@ if (Astro.request.method === 'POST') {
         if (formField(data, 'confirmName') !== current.addressee) throw new Error('Escriu exactament el nom per a eliminar la invitació.');
         await deleteInvitation(id);
       }
+      if (acceptsJson) return jsonResponse({ saved: true, revision: await revisionAfterChange('list') });
       const next = new URL('/admin/gestion', Astro.url);
       for (const key of ['q', 'status', 'response', 'group', 'page']) {
         const value = Astro.url.searchParams.get(key);
@@ -67,12 +76,14 @@ if (Astro.request.method === 'POST') {
       const name = requiredField(formField(data, 'name'), 160, 'Nom del grup');
       await createGroup(name, parseLocale(formField(data, 'locale')));
       const position = Math.max(0, (await listGroups()).findIndex((group) => group.name === name));
+      if (acceptsJson) return jsonResponse({ page: Math.floor(position / ADMIN_PAGE_SIZE) + 1, revision: await revisionAfterChange('groups') });
       return Astro.redirect(`/admin/gestion?view=grups&page=${Math.floor(position / ADMIN_PAGE_SIZE) + 1}&groupSaved=1`, 303);
     }
     if (action === 'editGroup') {
       const id = formField(data, 'groupId');
       await updateGroup(id, requiredField(formField(data, 'name'), 160, 'Nom del grup'), parseLocale(formField(data, 'locale')));
       const position = Math.max(0, (await listGroups()).findIndex((group) => group.id === id));
+      if (acceptsJson) return jsonResponse({ page: Math.floor(position / ADMIN_PAGE_SIZE) + 1, revision: await revisionAfterChange('groups') });
       const next = new URL('/admin/gestion', Astro.url);
       next.searchParams.set('view', 'grups');
       next.searchParams.set('page', String(Math.floor(position / ADMIN_PAGE_SIZE) + 1));
@@ -83,55 +94,47 @@ if (Astro.request.method === 'POST') {
       const deadline = formField(data, 'deadline');
       if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) throw new Error('La data límit no és vàlida.');
       await saveSettings({ rsvp_enabled: formField(data, 'enabled') === 'yes', rsvp_deadline: deadline || null });
+      if (acceptsJson) return jsonResponse({ saved: true, revision: await revisionAfterChange('settings') });
       return Astro.redirect('/admin/gestion?view=ajustos&saved=1', 303);
     }
     throw new Error('Acció no vàlida.');
-  } catch (cause) { error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.'; }
+  } catch (cause) {
+    error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.';
+    if (acceptsJson) return jsonResponse({ error }, 400);
+  }
 }
 let groups = [] as Awaited<ReturnType<typeof listGroups>>;
-let invitations = [] as Awaited<ReturnType<typeof listInvitations>>;
+let managementPage: Awaited<ReturnType<typeof listInvitationsPage>> = { ...paginationForTotal(0, Astro.url.searchParams.get('page')), items: [] };
 let config: Awaited<ReturnType<typeof settings>> = { rsvp_enabled: true, rsvp_deadline: null };
+let dataRevision = '';
+const viewParam = Astro.url.searchParams.get('view');
+const requestedView = ['invitacions', 'nova', 'grups', 'ajustos'].includes(viewParam ?? '') ? viewParam : 'invitacions';
+const revisionScope = requestedView === 'grups' ? 'groups' : requestedView === 'ajustos' ? 'settings' : 'list';
+const filters = invitationFilters(Astro.url);
+const { search, status: statusFilter, response: responseFilter, group: groupFilter } = filters;
+try { dataRevision = await adminDataRevision(revisionScope); } catch { /* The page remains usable if revision checks fail. */ }
 try {
-  await ensureValenciaGroup();
-  [groups, config, invitations] = await Promise.all([listGroups(), settings(), listInvitations()]);
+  if (requestedView === 'ajustos') config = await settings();
+  else {
+    if (requestedView === 'grups') groups = await listGroups();
+    else [groups, managementPage] = await Promise.all([listGroups(), listInvitationsPage(filters, Astro.url.searchParams.get('page'))]);
+    if (!groups.some((group) => group.name === 'Valencia')) {
+      await ensureValenciaGroup();
+      groups = await listGroups();
+    }
+  }
 } catch { error = 'No podem carregar les dades. Revisa la connexió amb la base de dades.'; }
 const defaultGroup = groups.find((group) => group.name === 'Valencia');
-const viewParam = Astro.url.searchParams.get('view');
-const view = ['invitacions', 'nova', 'grups', 'ajustos'].includes(viewParam ?? '') ? viewParam : error && submittedName ? 'nova' : 'invitacions';
-const search = Astro.url.searchParams.get('q')?.trim() ?? '';
-const statusFilter = Astro.url.searchParams.get('status') ?? 'all';
-const responseParam = Astro.url.searchParams.get('response');
-const responseFilter = responseParam && ['yes', 'no', 'pending'].includes(responseParam) ? responseParam : 'all';
-const responseFilterNote = responseFilter === 'yes' ? 'amb almenys una persona que assistirà' : responseFilter === 'no' ? 'amb almenys una persona que no assistirà' : responseFilter === 'pending' ? 'amb almenys una persona pendent de resposta' : '';
-const groupFilter = Astro.url.searchParams.get('group') ?? 'all';
-const filteredInvitations = invitations.filter((invitation) => {
-  const text = [invitation.addressee, invitation.email ?? '', ...invitation.guests.map((guest) => guest.name)].join(' ').toLocaleLowerCase('ca-ES');
-  const matchesSearch = !search || text.includes(search.toLocaleLowerCase('ca-ES'));
-  const matchesStatus = statusFilter === 'all' || (statusFilter === 'sent' ? Boolean(invitation.sent_at) && !invitation.revoked_at : statusFilter === 'unsent' ? !invitation.sent_at && !invitation.revoked_at : statusFilter === 'revoked' && Boolean(invitation.revoked_at));
-  const matchesResponse = responseFilter === 'all' || (!invitation.revoked_at && invitation.guests.some((guest) => guest.response === responseFilter));
-  const matchesGroup = groupFilter === 'all' || (groupFilter === 'none' ? !invitation.group_id : invitation.group_id === groupFilter);
-  return matchesSearch && matchesStatus && matchesResponse && matchesGroup;
-});
-const managementPage = paginateItems(filteredInvitations, Astro.url.searchParams.get('page'));
-const groupPage = paginateItems(groups, Astro.url.searchParams.get('page'));
-const managementPageHref = (page: number) => {
-  const url = new URL('/admin/gestion', Astro.url);
-  if (search) url.searchParams.set('q', search);
-  if (statusFilter !== 'all') url.searchParams.set('status', statusFilter);
-  if (responseFilter !== 'all') url.searchParams.set('response', responseFilter);
-  if (groupFilter !== 'all') url.searchParams.set('group', groupFilter);
-  url.searchParams.set('page', String(page));
-  return url.pathname + url.search;
-};
-const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`;
+const view = !viewParam && error && submittedName ? 'nova' : requestedView;
 ---
 <BaseLayout title="Configuració i gestió · Boda" privatePage>
-  <div class="admin-shell">
+  <div class="admin-shell" data-admin-revision={dataRevision} data-admin-scope={revisionScope}>
     <header class="admin-header">
       <div><p class="eyebrow">Espai dels nuvis</p><h1>Configuració i gestió</h1></div>
       <form method="post"><input type="hidden" name="action" value="logout" /><button type="submit" class="admin-link">Tanca la sessió</button></form>
     </header>
     <AdminNav active={view === 'grups' ? 'grups' : view === 'ajustos' ? 'ajustos' : 'invitacions'} />
+    <p class="form-message" data-admin-feedback role="status" hidden></p>
     {error && view !== 'nova' && <p class="form-message form-message--error" role="alert">{error}</p>}
     {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Configuració guardada.</p>}
     {Astro.url.searchParams.has('groupSaved') && <p class="form-message form-message--success" role="status">Grup i idioma guardats.</p>}
@@ -147,18 +150,7 @@ const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`
         <label for="invitation-group">Grup<select id="invitation-group" name="group"><option value="all" selected={groupFilter === 'all'}>Tots</option><option value="none" selected={groupFilter === 'none'}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select></label>
         <button class="button" type="submit">Filtra</button>
       </form>
-      {responseFilterNote && <p class="admin-management-filter-note">Es mostren invitacions {responseFilterNote}.</p>}
-      {filteredInvitations.length ? <div class="admin-table-wrap"><table class="admin-table admin-table--management"><thead><tr><th scope="col"><span class="admin-table__label"><AdminIcon name="person" />Nom</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="group" />Grup</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="copy" />Missatge</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="send" />Enviament</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="manage" />Gestió</span></th></tr></thead><tbody>{managementPage.items.map((invitation) => {
-        const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
-        return <tr data-invitation-id={invitation.id} data-invitation-name={invitation.addressee} data-invitation-group={invitation.group_id ?? ''} data-invitation-email={invitation.email ?? ''} data-invitation-note={invitation.personal_note ?? ''} data-invitation-note-uk={invitation.personal_note_uk ?? ''} data-invitation-responses={JSON.stringify(invitation.guests.map((guest) => ({ name: guest.name, response: guest.response, allergies: guest.allergies, observations: guest.observations, busSeat: guest.bus_seat, busRoute: guest.bus_route })))}>
-          <th scope="row" data-label="Nom" class="admin-table__name">{invitation.addressee}{invitation.guests.length > 1 && <small>{invitation.guests.length} persones</small>}</th>
-          <td data-label="Grup"><span class="admin-table__group">{groups.find((group) => group.id === invitation.group_id)?.name ?? 'Sense grup'}</span></td>
-          <td data-label="Missatge"><button type="button" class="button admin-table__copy" data-copy-message={invitation.revoked_at ? undefined : invitationMessage(invitation.addressee, link, invitation.locale)} disabled={Boolean(invitation.revoked_at)}><AdminIcon name="copy" /><span data-copy-label>Copia missatge</span></button></td>
-          <td data-label="Enviament">{invitation.revoked_at ? <span class="admin-table__state" data-state="revoked"><AdminIcon name="blocked" />Revocada</span> : <form method="post" action={Astro.url.pathname + Astro.url.search} class="admin-delivery-form"><input type="hidden" name="action" value="delivery" /><input type="hidden" name="invitationId" value={invitation.id} /><label class="admin-delivery-check"><input type="checkbox" name="sent" value="yes" checked={Boolean(invitation.sent_at)} /><span>{invitation.sent_at ? 'Enviada' : 'Sense enviar'}</span></label><noscript><button type="submit">Guarda</button></noscript></form>}</td>
-          <td data-label="Gestió"><div class="admin-table__row-actions"><button type="button" data-open-modal="view" aria-label={`Veure la invitació de ${invitation.addressee}`} title="Veure"><AdminIcon name="view" /></button><button type="button" data-open-modal="edit" aria-label={`Editar la invitació de ${invitation.addressee}`} title="Editar"><AdminIcon name="edit" /></button><button type="button" data-open-modal="delete" aria-label={`Eliminar la invitació de ${invitation.addressee}`} title="Eliminar"><AdminIcon name="delete" /></button></div></td>
-        </tr>;
-      })}</tbody></table></div> : <p class="admin-empty">{invitations.length ? 'No hi ha invitacions que coincidisquen amb els filtres.' : 'Encara no hi ha invitacions. Afig la primera amb el botó de dalt.'}</p>}
-      <AdminPagination {...managementPage} label="invitacions" href={managementPageHref} />
+      <AdminInvitationResults page={managementPage} filters={filters} origin={Astro.url.origin} />
       <p class="admin-copy-status" data-copy-status role="status" aria-live="polite"></p>
     </main>}
     {(view === 'invitacions' || view === 'nova') && <dialog class="admin-dialog" aria-labelledby="new-title" open={view === 'nova'} data-invitation-dialog>
@@ -188,30 +180,8 @@ const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`
       <a class="admin-dialog__detail-link" data-edit-detail>Edita les persones, respostes i l’enllaç →</a>
     </dialog>}
     {(view === 'invitacions' || view === 'nova') && <dialog class="admin-dialog admin-dialog--danger" aria-labelledby="delete-title" data-action-dialog="delete"><div class="admin-dialog__heading"><div><p class="eyebrow">Elimina definitivament</p><h2 id="delete-title">Elimina la invitació</h2></div><button type="button" class="admin-link" data-close-modal>Tanca ×</button></div><p>S’eliminaran l’enllaç i totes les respostes. Esta acció no es pot desfer.</p><form method="post" action={Astro.url.pathname + Astro.url.search} class="admin-form"><input type="hidden" name="action" value="deleteInvitation" /><input type="hidden" name="invitationId" data-delete-id /><label for="delete-name" data-delete-label></label><input id="delete-name" name="confirmName" autocomplete="off" required /><button class="button" type="submit">Elimina definitivament</button></form></dialog>}
-    {view === 'grups' && <main class="admin-section" aria-labelledby="groups-title">
-      <div class="admin-section__heading"><div><p class="eyebrow">Organitza</p><h2 id="groups-title">Grups i idiomes</h2></div></div>
-      <section aria-labelledby="create-group-title"><h3 id="create-group-title">Afig un grup</h3><form method="post" action="/admin/gestion?view=grups" class="admin-form"><input type="hidden" name="action" value="createGroup" /><label for="new-group-name">Nom del grup</label><input id="new-group-name" name="name" maxlength="160" required placeholder="Per exemple: família d’Ucraïna" /><label for="new-group-locale">Idioma</label><select id="new-group-locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select><button class="button button--primary" type="submit">Crea el grup</button></form></section>
-      <section class="admin-group-list" aria-labelledby="current-groups-title">
-        <h3 id="current-groups-title">Grups existents</h3>
-        <p>Les invitacions d’un grup utilitzen el seu idioma. Si el canvies, també canvien els enllaços.</p>
-        {groups.length ? <>
-          {groupPage.items.map((group) => <form id={`group-form-${group.id}`} method="post" action={groupPageHref(groupPage.page)}><input type="hidden" name="action" value="editGroup" /><input type="hidden" name="groupId" value={group.id} /></form>)}
-          <p id="group-scroll-hint" class="admin-group-table__hint">Desplaça la taula cap a la dreta per a veure l’idioma i guardar els canvis.</p>
-          <div class="admin-group-table-wrap" role="region" aria-label="Taula de grups" aria-describedby="group-scroll-hint" tabindex="0">
-            <table class="admin-group-table">
-              <thead><tr><th scope="col">Nom del grup</th><th scope="col">Idioma del grup</th><th scope="col">Acció</th></tr></thead>
-              <tbody>{groupPage.items.map((group) => <tr>
-                <td><label class="admin-group-table__hidden-label" for={`group-name-${group.id}`}>Nom del grup {group.name}</label><input id={`group-name-${group.id}`} form={`group-form-${group.id}`} name="name" value={group.name} maxlength="160" required /></td>
-                <td><label class="admin-group-table__hidden-label" for={`group-locale-${group.id}`}>Idioma del grup {group.name}</label><select id={`group-locale-${group.id}`} form={`group-form-${group.id}`} name="locale"><option value="es" selected={group.locale === 'es'}>Valencià</option><option value="uk" selected={group.locale === 'uk'}>Українська</option></select></td>
-                <td><button class="button" form={`group-form-${group.id}`} type="submit" aria-label={`Guarda el grup ${group.name}`}>Guarda el grup</button></td>
-              </tr>)}</tbody>
-            </table>
-          </div>
-          <AdminPagination {...groupPage} label="grups" href={groupPageHref} />
-        </> : <p class="admin-empty">Encara no hi ha grups. Afig el primer grup amb el formulari de dalt.</p>}
-      </section>
-    </main>}
-    {view === 'ajustos' && <main class="admin-section" aria-labelledby="settings-title"><div class="admin-section__heading"><div><p class="eyebrow">Control</p><h2 id="settings-title">Termini de confirmació</h2></div></div><form method="post" action="/admin/gestion?view=ajustos" class="admin-form"><input type="hidden" name="action" value="settings" /><label class="admin-checkbox"><input type="checkbox" name="enabled" value="yes" checked={config.rsvp_enabled} /> Permet les respostes</label><label for="deadline">Data límit (opcional)</label><input type="date" id="deadline" name="deadline" value={config.rsvp_deadline ?? ''} /><button class="button button--primary" type="submit">Guarda la configuració</button></form></main>}
+    {view === 'grups' && <AdminGroupsSection groups={groups} rawPage={Astro.url.searchParams.get('page')} />}
+    {view === 'ajustos' && <AdminSettingsSection config={config} />}
   </div>
   <script>
     const actionDialogs = {
@@ -219,7 +189,9 @@ const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`
       edit: document.querySelector<HTMLDialogElement>('[data-action-dialog="edit"]'),
       delete: document.querySelector<HTMLDialogElement>('[data-action-dialog="delete"]'),
     };
-    document.querySelectorAll<HTMLButtonElement>('[data-open-modal]').forEach((button) => button.addEventListener('click', () => {
+    document.addEventListener('click', (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-open-modal]');
+      if (!button) return;
       const row = button.closest<HTMLTableRowElement>('tr[data-invitation-id]');
       const kind = button.dataset.openModal as keyof typeof actionDialogs;
       const dialog = actionDialogs[kind];
@@ -281,10 +253,315 @@ const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`
         if (confirmation) confirmation.value = '';
       }
       dialog.showModal();
-    }));
+    });
     document.querySelectorAll<HTMLButtonElement>('[data-close-modal]').forEach((button) => button.addEventListener('click', () => button.closest('dialog')?.close()));
-    document.querySelectorAll<HTMLFormElement>('.admin-delivery-form').forEach((form) => {
-      form.querySelector<HTMLInputElement>('input[name="sent"]')?.addEventListener('change', () => form.requestSubmit());
+    const results = document.querySelector<HTMLElement>('[data-management-results]');
+    const filters = document.querySelector<HTMLFormElement>('.admin-management-filters');
+    const status = document.querySelector<HTMLElement>('[data-copy-status]');
+    const feedback = document.querySelector<HTMLElement>('[data-admin-feedback]');
+    const shell = document.querySelector<HTMLElement>('.admin-shell');
+    const announce = (message: string, error = false) => {
+      if (!feedback) return;
+      feedback.hidden = false;
+      feedback.textContent = message;
+      feedback.className = `form-message form-message--${error ? 'error' : 'success'}`;
+      feedback.setAttribute('role', error ? 'alert' : 'status');
+    };
+    const pageCache = new Map<string, { html: string; savedAt: number }>();
+    const cacheKey = (url: URL) => url.pathname + url.search;
+    const remember = (url: URL, html: string) => {
+      pageCache.delete(cacheKey(url));
+      pageCache.set(cacheKey(url), { html, savedAt: Date.now() });
+      if (pageCache.size > 8) pageCache.delete(pageCache.keys().next().value!);
+    };
+    if (results) remember(new URL(location.href), results.innerHTML);
+    let request: AbortController | undefined;
+    const navigateResults = async (url: URL, mode: 'push' | 'pop', fresh = false, withGroups = false) => {
+      if (!results || !filters) return false;
+      request?.abort();
+      const current = request = new AbortController();
+      results.setAttribute('aria-busy', 'true');
+      try {
+        const cached = !fresh && pageCache.get(cacheKey(url));
+        let html = cached && Date.now() - cached.savedAt < 15000 ? cached.html : '';
+        let groupOptions: HTMLTemplateElement | null = null;
+        if (!html) {
+          const partialUrl = new URL('/admin/gestion/resultados', url);
+          partialUrl.search = url.search;
+          if (withGroups) partialUrl.searchParams.set('groups', '1');
+          const response = await fetch(partialUrl, { signal: current.signal, cache: 'no-store', headers: { Accept: 'text/html' } });
+          if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return; }
+          if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('Invalid response');
+          const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const nextResults = parsed.querySelector<HTMLElement>('[data-management-results]');
+          if (!nextResults) throw new Error('Missing invitation list');
+          if (withGroups) {
+            groupOptions = parsed.querySelector<HTMLTemplateElement>('[data-management-group-options]');
+            if (!groupOptions) throw new Error('Missing group options');
+          }
+          html = nextResults.innerHTML;
+          remember(url, html);
+        }
+        if (current.signal.aborted) return;
+        const paginationFocused = document.activeElement?.closest('.admin-pagination');
+        results.innerHTML = html;
+        if (groupOptions) {
+          for (const [target, source] of [
+            [filters.querySelector<HTMLSelectElement>('[name="group"]'), groupOptions.content.querySelector<HTMLSelectElement>('[data-filter-options]')],
+            [document.querySelector<HTMLSelectElement>('#edit-group'), groupOptions.content.querySelector<HTMLSelectElement>('[data-edit-options]')],
+            [document.querySelector<HTMLSelectElement>('#groupId'), groupOptions.content.querySelector<HTMLSelectElement>('[data-create-options]')],
+          ] as const) {
+            if (!target || !source) continue;
+            const signature = (select: HTMLSelectElement) => [...select.options].map((option) => `${option.value}:${option.textContent}`).join('|');
+            if (signature(target) === signature(source)) continue;
+            const selected = target.value;
+            target.replaceChildren(...[...source.options].map((option) => option.cloneNode(true)));
+            if ([...target.options].some((option) => option.value === selected)) target.value = selected;
+          }
+        }
+        results.removeAttribute('aria-busy');
+        if (mode === 'push') history.pushState(null, '', url);
+        for (const name of ['q', 'status', 'response', 'group']) {
+          const field = filters.elements.namedItem(name);
+          if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) field.value = url.searchParams.get(name) ?? (name === 'q' ? '' : 'all');
+        }
+        for (const form of document.querySelectorAll<HTMLFormElement>('[data-action-dialog] form')) form.setAttribute('action', url.href);
+        if (status) status.textContent = 'Llista actualitzada.';
+        if (mode === 'push' && paginationFocused) {
+          const selectedPage = results.querySelector<HTMLElement>('.admin-pagination [aria-current="page"]');
+          selectedPage?.focus({ preventScroll: true });
+        }
+        return true;
+      } catch (error) {
+        if (current.signal.aborted) return false;
+        results.removeAttribute('aria-busy');
+        if (status) status.textContent = 'No s’ha pogut carregar la llista. Torna a provar-ho.';
+        return false;
+      }
+    };
+    const postForm = async (form: HTMLFormElement) => {
+      const response = await fetch(form.getAttribute('action') ?? location.href, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); throw new Error('La sessió ha caducat.'); }
+      if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('No s’ha pogut guardar els canvis.');
+      const result = await response.json() as { error?: string; page?: number; revision?: string };
+      if (!response.ok) throw new Error(result.error ?? 'No s’ha pogut guardar els canvis.');
+      return result;
+    };
+    const sectionCache = new Map<string, { html: string; savedAt: number }>();
+    const notifyDataChanged = () => {
+      pageCache.clear();
+      sectionCache.clear();
+      try { localStorage.setItem('wedding.admin.changed', String(Date.now())); } catch { /* Storage can be unavailable. */ }
+    };
+    const sectionKey = (kind: 'groups' | 'settings', url: URL) => `${kind}:${cacheKey(url)}`;
+    const currentKind = document.querySelector('[data-admin-groups]') ? 'groups' : document.querySelector('[data-admin-settings]') ? 'settings' : null;
+    if (currentKind) {
+      const main = document.querySelector<HTMLElement>(currentKind === 'groups' ? '[data-admin-groups]' : '[data-admin-settings]');
+      if (main) sectionCache.set(sectionKey(currentKind, new URL(location.href)), { html: main.outerHTML, savedAt: Date.now() });
+    }
+    let sectionRequest: AbortController | undefined;
+    const navigateSection = async (kind: 'groups' | 'settings', url: URL, mode: 'push' | 'pop' | 'replace', fresh = false) => {
+      const selector = kind === 'groups' ? '[data-admin-groups]' : '[data-admin-settings]';
+      const current = document.querySelector<HTMLElement>(selector);
+      if (!current) return false;
+      sectionRequest?.abort();
+      const controller = sectionRequest = new AbortController();
+      current.setAttribute('aria-busy', 'true');
+      try {
+        const cached = !fresh && sectionCache.get(sectionKey(kind, url));
+        let html = cached && Date.now() - cached.savedAt < 15000 ? cached.html : '';
+        if (!html) {
+          const endpoint = new URL(kind === 'groups' ? '/admin/gestion/grupos' : '/admin/gestion/ajustes', url);
+          endpoint.search = url.search;
+          const response = await fetch(endpoint, { signal: controller.signal, cache: 'no-store', headers: { Accept: 'text/html' } });
+          if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return false; }
+          if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('No s’ha pogut actualitzar la secció.');
+          const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const next = parsed.querySelector<HTMLElement>(selector);
+          if (!next) throw new Error('No s’ha pogut actualitzar la secció.');
+          html = next.outerHTML;
+          sectionCache.set(sectionKey(kind, url), { html, savedAt: Date.now() });
+        }
+        if (controller.signal.aborted) return false;
+        const focusedPagination = document.activeElement?.closest('.admin-pagination');
+        const next = new DOMParser().parseFromString(html, 'text/html').querySelector<HTMLElement>(selector);
+        if (!next) throw new Error('No s’ha pogut actualitzar la secció.');
+        current.replaceWith(next);
+        if (mode === 'push') history.pushState(null, '', url);
+        if (mode === 'replace') history.replaceState(null, '', url);
+        if (mode === 'push' && focusedPagination) next.querySelector<HTMLElement>('.admin-pagination [aria-current="page"]')?.focus({ preventScroll: true });
+        return true;
+      } catch {
+        if (controller.signal.aborted) return false;
+        current.removeAttribute('aria-busy');
+        announce('No s’ha pogut actualitzar la secció. Torna a provar-ho.', true);
+        return false;
+      }
+    };
+    const dirtyForms = new WeakSet<HTMLFormElement>();
+    const markDirty = (event: Event) => {
+      const field = event.target;
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) return;
+      if (!field.closest('[data-admin-groups], [data-admin-settings]')) return;
+      const form = field.form;
+      if (form) dirtyForms.add(form);
+    };
+    shell?.addEventListener('input', markDirty);
+    shell?.addEventListener('change', markDirty);
+    const hasPendingEdits = () => {
+      if (document.querySelector('dialog[open]')) return true;
+      if (document.querySelector('[data-admin-groups] form[aria-busy="true"], [data-admin-settings] form[aria-busy="true"]')) return true;
+      if ([...document.querySelectorAll<HTMLFormElement>('[data-admin-groups] form, [data-admin-settings] form')].some((form) => dirtyForms.has(form))) return true;
+      if (filters) {
+        const url = new URL(location.href);
+        for (const [name, value] of new FormData(filters)) {
+          if (String(value) !== (url.searchParams.get(name) ?? (name === 'q' ? '' : 'all'))) return true;
+        }
+      }
+      return false;
+    };
+    const refreshActive = async () => {
+      if (hasPendingEdits()) {
+        announce('Hi ha dades noves. Guarda o descarta els canvis del formulari per a actualitzar la vista.');
+        return false;
+      }
+      const url = new URL(location.href);
+      if (results) return navigateResults(url, 'pop', true, true);
+      if (document.querySelector('[data-admin-groups]')) return navigateSection('groups', url, 'pop', true);
+      if (document.querySelector('[data-admin-settings]')) return navigateSection('settings', url, 'pop', true);
+      return false;
+    };
+    let lastRevision = shell?.dataset.adminRevision ?? '';
+    let checkingRevision = false;
+    const checkRevision = async () => {
+      if (document.hidden || checkingRevision) return;
+      checkingRevision = true;
+      try {
+        const response = await fetch(`/admin/revision?scope=${shell?.dataset.adminScope ?? 'list'}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+        if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return; }
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) return;
+        const { revision } = await response.json() as { revision?: string };
+        if (!revision) return;
+        if (!lastRevision) { lastRevision = revision; return; }
+        if (revision === lastRevision) return;
+        pageCache.clear();
+        sectionCache.clear();
+        if (await refreshActive()) lastRevision = revision;
+      } catch { /* The next visible poll retries. */ }
+      finally { checkingRevision = false; }
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { pageCache.clear(); sectionCache.clear(); void checkRevision(); }
+    });
+    window.addEventListener('storage', (event) => {
+      if (event.key !== 'wedding.admin.changed') return;
+      pageCache.clear();
+      sectionCache.clear();
+      if (!document.hidden) void checkRevision();
+    });
+    window.setInterval(() => { void checkRevision(); }, 60000);
+    shell?.addEventListener('submit', async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.closest('[data-admin-groups], [data-admin-settings]')) return;
+      event.preventDefault();
+      const kind = form.closest('[data-admin-groups]') ? 'groups' : 'settings';
+      const submitter = (event as SubmitEvent).submitter;
+      if (!(submitter instanceof HTMLButtonElement) || submitter.disabled) return;
+      submitter.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+      try {
+        const result = await postForm(form);
+        if (result.revision) lastRevision = result.revision;
+        notifyDataChanged();
+        const url = new URL(location.href);
+        if (kind === 'groups') url.searchParams.set('page', String(result.page ?? 1));
+        const refreshed = await navigateSection(kind, url, 'replace', true);
+        announce(refreshed ? kind === 'groups' ? 'Grup i idioma guardats.' : 'Configuració guardada.' : 'Canvis guardats. Torna a carregar la secció per a veure’ls.');
+      } catch (cause) {
+        announce(cause instanceof Error ? cause.message : 'No s’ha pogut guardar els canvis.', true);
+      } finally {
+        form.removeAttribute('aria-busy');
+        submitter.disabled = false;
+      }
+    });
+    shell?.addEventListener('click', (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('[data-admin-groups] .admin-pagination a[href]');
+      if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      navigateSection('groups', new URL(link.href), 'push');
+    });
+    document.querySelectorAll<HTMLFormElement>('[data-action-dialog] form').forEach((form) => form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const dialog = form.closest<HTMLDialogElement>('dialog');
+      const submit = form.querySelector<HTMLButtonElement>('[type="submit"]');
+      if (!dialog || !submit || submit.disabled) return;
+      dialog.querySelector('[data-action-error]')?.remove();
+      submit.disabled = true;
+      try {
+        const result = await postForm(form);
+        if (result.revision) lastRevision = result.revision;
+        notifyDataChanged();
+        const refreshed = await navigateResults(new URL(location.href), 'pop', true);
+        dialog.close();
+        if (status) status.textContent = refreshed ? 'Canvis guardats.' : 'Canvis guardats. Torna a carregar la llista per a veure’ls.';
+      } catch (cause) {
+        const message = document.createElement('p');
+        message.className = 'form-message form-message--error';
+        message.dataset.actionError = '';
+        message.setAttribute('role', 'alert');
+        message.textContent = cause instanceof Error ? cause.message : 'No s’ha pogut guardar els canvis.';
+        form.before(message);
+      } finally { submit.disabled = false; }
+    }));
+    filters?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const url = new URL(filters.action);
+      const params = new URLSearchParams();
+      for (const [name, value] of new FormData(filters)) params.set(name, String(value));
+      url.search = params.toString();
+      navigateResults(url, 'push');
+    });
+    results?.addEventListener('click', (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('.admin-pagination a[href]');
+      if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      navigateResults(new URL(link.href), 'push');
+    });
+    window.addEventListener('popstate', () => {
+      const url = new URL(location.href);
+      if (url.pathname !== '/admin/gestion') { location.reload(); return; }
+      if (url.searchParams.get('view') === 'grups' && document.querySelector('[data-admin-groups]')) { navigateSection('groups', url, 'pop'); return; }
+      if (url.searchParams.get('view') === 'ajustos' && document.querySelector('[data-admin-settings]')) { navigateSection('settings', url, 'pop'); return; }
+      if (['grups', 'ajustos'].includes(url.searchParams.get('view') ?? '')) { location.reload(); return; }
+      navigateResults(url, 'pop');
+    });
+    results?.addEventListener('change', async (event) => {
+      const checkbox = event.target;
+      if (!(checkbox instanceof HTMLInputElement) || checkbox.name !== 'sent') return;
+      const form = checkbox.closest<HTMLFormElement>('.admin-delivery-form');
+      if (!form) return;
+      const label = form.querySelector<HTMLElement>('.admin-delivery-check span');
+      checkbox.disabled = true;
+      try {
+        const data = new FormData(form);
+        if (checkbox.checked) data.set('sent', 'yes');
+        else data.delete('sent');
+        const response = await fetch(form.getAttribute('action') ?? location.href, { method: 'POST', body: data, headers: { Accept: 'application/json' } });
+        if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return; }
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Invalid response');
+        const saved = await response.json() as { sent: boolean; revision?: string };
+        checkbox.checked = saved.sent;
+        if (saved.revision) lastRevision = saved.revision;
+        if (label) label.textContent = saved.sent ? 'Enviada' : 'Sense enviar';
+        notifyDataChanged();
+        if (status) status.textContent = 'Estat d’enviament guardat.';
+        if (new URL(location.href).searchParams.get('status') !== 'all' && new URL(location.href).searchParams.has('status')) {
+          await navigateResults(new URL(location.href), 'pop', true);
+        } else if (results) remember(new URL(location.href), results.innerHTML);
+      } catch {
+        checkbox.checked = !checkbox.checked;
+        if (status) status.textContent = 'No s’ha pogut guardar l’estat. Torna a provar-ho.';
+      } finally { checkbox.disabled = false; }
     });
     const dialog = document.querySelector<HTMLDialogElement>('[data-invitation-dialog]');
     if (dialog && typeof dialog.showModal === 'function') {
@@ -302,12 +579,13 @@ const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`
         if (new URLSearchParams(location.search).get('view') === 'nova') history.replaceState(null, '', '/admin/gestion');
       });
     }
-    const status = document.querySelector<HTMLElement>('[data-copy-status]');
-    document.querySelectorAll<HTMLButtonElement>('[data-copy-message]').forEach((button) => button.addEventListener('click', async () => {
+    results?.addEventListener('click', async (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-copy-message]');
+      if (!button) return;
       const message = button.dataset.copyMessage;
       if (!message || !status) return;
       try { await navigator.clipboard.writeText(message); const label = button.querySelector<HTMLElement>('[data-copy-label]'); if (label) label.textContent = 'Missatge copiat'; status.textContent = 'Missatge amb enllaç copiat.'; }
       catch { window.prompt('Copia este missatge:', message); status.textContent = 'Copia el missatge del quadre de diàleg.'; }
-    }));
+    });
   </script>
 </BaseLayout>

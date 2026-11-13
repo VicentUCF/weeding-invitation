@@ -13,8 +13,7 @@ if (!validToken(token)) return new Response(c.notFound, { status: 404 });
 let invitation;
 let config;
 try {
-  invitation = await invitationByToken(token);
-  config = await settings();
+  [invitation, config] = await Promise.all([invitationByToken(token), settings()]);
 } catch {
   return new Response(c.unavailable, { status: 503 });
 }
@@ -25,8 +24,9 @@ if (invitation.locale === 'es' && !forcedUkrainian) return Astro.redirect(invita
 let error = '';
 let submitted: FormData | undefined;
 if (Astro.request.method === 'POST') {
+  const json = Astro.request.headers.get('accept') === 'application/json';
   if (!sameOrigin(Astro)) return new Response(c.invalidOrigin, { status: 403 });
-  if (!canRespond(config)) return new Response(c.deadlineClosed, { status: 403 });
+  if (!canRespond(config)) return json ? new Response(JSON.stringify({ error: c.deadlineClosed }), { status: 403, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } }) : new Response(c.deadlineClosed, { status: 403 });
   let responses;
   try {
     submitted = await Astro.request.formData();
@@ -37,11 +37,13 @@ if (Astro.request.method === 'POST') {
   if (responses) {
     try {
       await saveRsvp(invitation.id, responses);
+      if (json) return new Response(JSON.stringify({ guests: responses.map((response) => ({ name: invitation.guests.find((guest) => guest.id === response.id)?.name ?? '', response: response.response })) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
       return Astro.redirect(`${invitationPath(token, 'uk')}?${forcedUkrainian ? 'lang=uk&' : ''}saved=1#confirmar`, 303);
     } catch {
       error = c.rsvpSaveError;
     }
   }
+  if (json) return new Response(JSON.stringify({ error }), { status: 400, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 }
 const recipient = { token, addressee: invitation.addressee, guests: invitation.guests.map((guest) => guest.name), personalNote: invitation.personal_note_uk ?? undefined };
 ---

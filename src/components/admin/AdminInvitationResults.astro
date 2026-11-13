@@ -1,0 +1,31 @@
+---
+import AdminIcon from './AdminIcon.astro';
+import AdminPagination from './AdminPagination.astro';
+import { invitationMessage } from '../../lib/invitation-message';
+import { managementPageHref, responseFilterNote, type InvitationListFilters } from '../../lib/admin-management';
+import { invitationToken, type listInvitationsPage } from '../../lib/invitations.server';
+import { invitationPath } from '../../lib/i18n';
+
+interface Props {
+  page: Awaited<ReturnType<typeof listInvitationsPage>>;
+  filters: InvitationListFilters;
+  origin: string;
+}
+const { page, filters, origin } = Astro.props;
+const note = responseFilterNote(filters.response);
+const hasFilters = Boolean(filters.search) || filters.status !== 'all' || filters.response !== 'all' || filters.group !== 'all';
+---
+<div data-management-results>
+  {note && <p class="admin-management-filter-note">Es mostren invitacions {note}.</p>}
+  {page.items.length ? <div class="admin-table-wrap"><table class="admin-table admin-table--management"><thead><tr><th scope="col"><span class="admin-table__label"><AdminIcon name="person" />Nom</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="group" />Grup</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="copy" />Missatge</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="send" />Enviament</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="manage" />Gestió</span></th></tr></thead><tbody>{page.items.map((invitation) => {
+    const link = `${origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
+    return <tr data-invitation-id={invitation.id} data-invitation-name={invitation.addressee} data-invitation-group={invitation.group_id ?? ''} data-invitation-email={invitation.email ?? ''} data-invitation-note={invitation.personal_note ?? ''} data-invitation-note-uk={invitation.personal_note_uk ?? ''} data-invitation-responses={JSON.stringify(invitation.guests.map((guest) => ({ name: guest.name, response: guest.response, allergies: guest.allergies, observations: guest.observations, busSeat: guest.bus_seat, busRoute: guest.bus_route })))}>
+      <th scope="row" data-label="Nom" class="admin-table__name">{invitation.addressee}{invitation.guests.length > 1 && <small>{invitation.guests.length} persones</small>}</th>
+      <td data-label="Grup"><span class="admin-table__group">{invitation.group_name ?? 'Sense grup'}</span></td>
+      <td data-label="Missatge"><button type="button" class="button admin-table__copy" data-copy-message={invitation.revoked_at ? undefined : invitationMessage(invitation.addressee, link, invitation.locale)} disabled={Boolean(invitation.revoked_at)}><AdminIcon name="copy" /><span data-copy-label>Copia missatge</span></button></td>
+      <td data-label="Enviament">{invitation.revoked_at ? <span class="admin-table__state" data-state="revoked"><AdminIcon name="blocked" />Revocada</span> : <form method="post" action={managementPageHref(filters, page.page)} class="admin-delivery-form"><input type="hidden" name="action" value="delivery" /><input type="hidden" name="invitationId" value={invitation.id} /><label class="admin-delivery-check"><input type="checkbox" name="sent" value="yes" checked={Boolean(invitation.sent_at)} /><span>{invitation.sent_at ? 'Enviada' : 'Sense enviar'}</span></label><noscript><button type="submit">Guarda</button></noscript></form>}</td>
+      <td data-label="Gestió"><div class="admin-table__row-actions"><button type="button" data-open-modal="view" aria-label={`Veure la invitació de ${invitation.addressee}`} title="Veure"><AdminIcon name="view" /></button><button type="button" data-open-modal="edit" aria-label={`Editar la invitació de ${invitation.addressee}`} title="Editar"><AdminIcon name="edit" /></button><button type="button" data-open-modal="delete" aria-label={`Eliminar la invitació de ${invitation.addressee}`} title="Eliminar"><AdminIcon name="delete" /></button></div></td>
+    </tr>;
+  })}</tbody></table></div> : <p class="admin-empty">{hasFilters ? 'No hi ha invitacions que coincidisquen amb els filtres.' : 'Encara no hi ha invitacions. Afig la primera amb el botó de dalt.'}</p>}
+  <AdminPagination {...page} label="invitacions" href={(number) => managementPageHref(filters, number)} />
+</div>

@@ -1,0 +1,31 @@
+---
+import AdminInvitationHeader from '../../../../components/admin/AdminInvitationHeader.astro';
+import AdminInvitationLink from '../../../../components/admin/AdminInvitationLink.astro';
+import AdminInvitationPersonalization from '../../../../components/admin/AdminInvitationPersonalization.astro';
+import AdminInvitationGuests from '../../../../components/admin/AdminInvitationGuests.astro';
+import AdminInvitationDanger from '../../../../components/admin/AdminInvitationDanger.astro';
+import { requireAdmin } from '../../../../lib/auth.server';
+import { invitationById, invitationToken, listGroups } from '../../../../lib/invitations.server';
+import { invitationPath } from '../../../../lib/i18n';
+
+export const prerender = false;
+export const partial = true;
+if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+const id = Astro.params.id ?? '';
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return new Response('No hem trobat la invitació', { status: 404 });
+const part = Astro.url.searchParams.get('part');
+if (part !== 'state' && part !== 'edit' && part !== 'guests' && part !== 'all') return new Response('Fragment no vàlid', { status: 400 });
+const invitation = await invitationById(id);
+if (!invitation) return new Response('No hem trobat la invitació', { status: 404 });
+const groups = part === 'edit' || part === 'all' ? await listGroups() : [];
+const link = part === 'guests' ? '' : `${Astro.url.origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
+---
+<div data-detail-fragments>
+  {(part === 'state' || part === 'edit' || part === 'all') && <AdminInvitationHeader invitation={invitation} />}
+  {(part === 'state' || part === 'edit' || part === 'all') && <AdminInvitationLink invitation={invitation} link={link} />}
+  {(part === 'edit' || part === 'all') && <AdminInvitationPersonalization invitation={invitation} groups={groups} />}
+  {(part === 'edit' || part === 'all') && <AdminInvitationDanger invitation={invitation} />}
+  {(part === 'guests' || part === 'all') && <AdminInvitationGuests invitation={invitation} />}
+</div>

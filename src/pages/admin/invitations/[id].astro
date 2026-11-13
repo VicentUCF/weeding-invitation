@@ -1,22 +1,34 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import AdminNav from '../../../components/admin/AdminNav.astro';
+import AdminInvitationHeader from '../../../components/admin/AdminInvitationHeader.astro';
+import AdminInvitationLink from '../../../components/admin/AdminInvitationLink.astro';
+import AdminInvitationPersonalization from '../../../components/admin/AdminInvitationPersonalization.astro';
+import AdminInvitationGuests from '../../../components/admin/AdminInvitationGuests.astro';
+import AdminInvitationDanger from '../../../components/admin/AdminInvitationDanger.astro';
 import { requireAdmin } from '../../../lib/auth.server';
 import { sameOrigin } from '../../../lib/security.server';
-import { listInvitations, listGroups, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, deleteInvitation } from '../../../lib/invitations.server';
+import { adminDataRevision, invitationById, listGroups, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, deleteInvitation } from '../../../lib/invitations.server';
 import { invitationInput, guestInput, formField, requiredField } from '../../../lib/forms.server';
-import { invitationPath, localeName } from '../../../lib/i18n';
+import { invitationPath } from '../../../lib/i18n';
 export const prerender = false;
 if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
 const id = Astro.params.id ?? '';
-if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response('No hem trobat la invitació', { status: 404 });
-let invitations = await listInvitations();
-const groups = await listGroups();
-let invitation = invitations.find((item) => item.id === id);
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return new Response('No hem trobat la invitació', { status: 404 });
+let dataRevision = '';
+if (Astro.request.method !== 'POST') {
+  try { dataRevision = await adminDataRevision('detail', id); } catch { /* The detail remains usable if revision checks fail. */ }
+}
+let invitation = await invitationById(id);
 if (!invitation) return new Response('No hem trobat la invitació', { status: 404 });
+const acceptsJson = Astro.request.headers.get('accept') === 'application/json';
+const jsonResponse = (payload: object, status = 200) => new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
+const revisionAfterChange = async () => {
+  try { return await adminDataRevision('detail', id); } catch { return undefined; }
+};
 let error = '';
 if (Astro.request.method === 'POST') {
-  if (!sameOrigin(Astro)) return new Response('No s’ha pogut validar la sol·licitud', { status: 403 });
+  if (!sameOrigin(Astro)) return acceptsJson ? jsonResponse({ error: 'No s’ha pogut validar la sol·licitud' }, 403) : new Response('No s’ha pogut validar la sol·licitud', { status: 403 });
   const data = await Astro.request.formData();
   try {
     const action = formField(data, 'action');
@@ -24,6 +36,7 @@ if (Astro.request.method === 'POST') {
     else if (action === 'delete') {
       if (formField(data, 'confirmName') !== invitation.addressee) throw new Error('Escriu exactament el destinatari per a eliminar la invitació.');
       await deleteInvitation(id);
+      if (acceptsJson) return jsonResponse({ redirect: '/admin/gestion?deleted=1' });
       return Astro.redirect('/admin/gestion?deleted=1', 303);
     }
     else if (['sent', 'unsent', 'revoke', 'restore', 'rotate'].includes(action)) await updateInvitationState(id, action as 'sent' | 'unsent' | 'revoke' | 'restore' | 'rotate');
@@ -38,65 +51,178 @@ if (Astro.request.method === 'POST') {
         await removeGuest(guestId, id);
       } else await updateGuest(guestId, id, guestInput(data));
     } else throw new Error('Acció no vàlida.');
+    if (acceptsJson) return jsonResponse({ part: action === 'edit' ? 'edit' : ['sent', 'unsent', 'revoke', 'restore', 'rotate'].includes(action) ? 'state' : 'guests', revision: await revisionAfterChange() });
     return Astro.redirect(`/admin/invitations/${id}?saved=1`, 303);
-  } catch (cause) { error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.'; }
-  invitations = await listInvitations();
-  invitation = invitations.find((item) => item.id === id)!;
+  } catch (cause) {
+    error = cause instanceof Error ? cause.message : 'No hem pogut guardar els canvis.';
+    if (acceptsJson) return jsonResponse({ error }, 400);
+  }
+  invitation = (await invitationById(id))!;
 }
+const groups = await listGroups();
 const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
 ---
 <BaseLayout title={`${invitation.addressee} · Invitacions`} privatePage>
-  <div class="admin-shell admin-shell--detail">
-    <header class="admin-header"><div><a class="admin-back" href="/admin/gestion">← Torna a gestió</a><p class="eyebrow">Detall de la invitació</p><h1>{invitation.addressee}</h1></div><span class="admin-pill">{invitation.revoked_at ? 'Enllaç revocat' : invitation.sent_at ? 'Marcada com a enviada' : 'Sense enviar'}</span></header>
+  <div class="admin-shell admin-shell--detail" data-admin-revision={dataRevision}>
+    <AdminInvitationHeader invitation={invitation} />
     <AdminNav active="invitacions" />
+    <p class="form-message" data-detail-feedback role="status" hidden></p>
     {error && <p class="form-message form-message--error" role="alert">{error}</p>}
     {Astro.url.searchParams.has('created') && <p class="form-message form-message--success" role="status">Invitació creada. Copia l’enllaç per a compartir-la.</p>}
     {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Canvis guardats.</p>}
-    <section class="admin-section" aria-labelledby="enlace-title"><div class="admin-section__heading"><div><p class="eyebrow">Compartix</p><h2 id="enlace-title">Enllaç privat</h2></div></div>
-      <p>Compartix-lo només amb les persones convidades. Qualsevol persona que tinga l’enllaç podrà veure i canviar les respostes.</p>
-      <div class="admin-linkbox"><input id="invitation-link" readonly value={link} aria-label="Enllaç de la invitació" /><button type="button" class="button" data-copy-link>Copia l’enllaç</button></div>
-      <p class="admin-copy-status" data-copy-status role="status"></p>
-      <div class="admin-actions">
-        <a class="button" href={link} target="_blank" rel="noopener noreferrer">Obri la invitació</a>
-        <form method="post"><input type="hidden" name="action" value={invitation.sent_at ? 'unsent' : 'sent'} /><button type="submit" class="button">{invitation.sent_at ? 'Marca com a no enviada' : 'Marca com a enviada'}</button></form>
-        <form method="post" data-confirm="L’enllaç anterior deixarà de funcionar. Vols generar-ne un de nou?"><input type="hidden" name="action" value="rotate" /><button type="submit" class="button">Renova l’enllaç</button></form>
-        <form method="post" data-confirm="Vols revocar esta invitació? L’enllaç deixarà de funcionar fins que el restaures."><input type="hidden" name="action" value={invitation.revoked_at ? 'restore' : 'revoke'} /><button type="submit" class="button">{invitation.revoked_at ? 'Restaura l’enllaç' : 'Revoca l’enllaç'}</button></form>
-      </div>
-      {invitation.email && <p>Correu de referència: <a href={`mailto:${invitation.email}`}>{invitation.email}</a>. L’has d’enviar des del teu correu; ací només registrem l’estat quan el marques.</p>}
-    </section>
-    <section class="admin-section" aria-labelledby="tarjeta-title"><div class="admin-section__heading"><div><p class="eyebrow">Personalització</p><h2 id="tarjeta-title">Invitació</h2></div></div>
-      <form method="post" class="admin-form"><input type="hidden" name="action" value="edit" /><label for="addressee">Destinatari de la portada</label><input id="addressee" name="addressee" required maxlength="160" value={invitation.addressee} /><label for="email">Correu de contacte (opcional)</label><input id="email" name="email" type="email" maxlength="254" value={invitation.email ?? ''} /><label for="groupId">Grup</label><select id="groupId" name="groupId"><option value="" selected={!invitation.group_id}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={invitation.group_id === group.id}>{group.name} · {localeName[group.locale]}</option>)}</select><label for="locale">Idioma si no hi ha grup</label><select id="locale" name="locale"><option value="es" selected={invitation.locale === 'es'}>Valencià</option><option value="uk" selected={invitation.locale === 'uk'}>Українська</option></select><p>Si tries un grup, s’aplica el seu idioma. Si canvies l’idioma, compartix l’enllaç actualitzat que apareix més amunt.</p><label for="personalNote">Missatge personal en valencià</label><textarea id="personalNote" name="personalNote" rows="3" maxlength="1000">{invitation.personal_note ?? ''}</textarea><label for="personalNoteUk">Missatge personal en ucraïnés</label><textarea id="personalNoteUk" name="personalNoteUk" rows="3" maxlength="1000">{invitation.personal_note_uk ?? ''}</textarea><button class="button button--primary" type="submit">Guarda la invitació</button></form>
-    </section>
-    <section class="admin-section" aria-labelledby="personas-title"><div class="admin-section__heading"><div><p class="eyebrow">Resposta per persona</p><h2 id="personas-title">Persones convidades</h2></div><p>Les respostes sobre l’autobús, les dades alimentàries i les observacions anteriors només apareixen ací i en el CSV privat.</p></div>
-      <div class="admin-guests">
-        {invitation.guests.map((guest) => <article class="admin-guest"><form method="post" class="admin-form"><input type="hidden" name="action" value="editGuest" /><input type="hidden" name="guestId" value={guest.id} /><label for={`name-${guest.id}`}>Nom</label><input id={`name-${guest.id}`} name="name" maxlength="160" required value={guest.name} /><label for={`response-${guest.id}`}>Assistència</label><select id={`response-${guest.id}`} name="response"><option value="pending" selected={guest.response === 'pending'}>Pendent</option><option value="yes" selected={guest.response === 'yes'}>Assistirà</option><option value="no" selected={guest.response === 'no'}>No assistirà</option></select><label for={`allergies-${guest.id}`}>Al·lèrgies i intoleràncies</label><textarea id={`allergies-${guest.id}`} name="allergies" rows="3" maxlength="2000">{guest.allergies}</textarea><label for={`bus-${guest.id}`}>Plaça a l’autobús</label><select id={`bus-${guest.id}`} name="bus"><option value="" selected={guest.bus_seat === null}>Sense resposta</option><option value="yes" selected={guest.bus_seat === true}>Sí, reserva plaça</option><option value="no" selected={guest.bus_seat === false}>No necessita plaça</option></select><div data-admin-bus-route><label for={`bus-route-${guest.id}`}>Trajecte de l’autobús</label><select id={`bus-route-${guest.id}`} name="busRoute"><option value="" selected={guest.bus_route === null}>Sense especificar</option><option value="outbound" selected={guest.bus_route === 'outbound'}>Només anada</option><option value="return" selected={guest.bus_route === 'return'}>Només tornada</option><option value="both" selected={guest.bus_route === 'both'}>Anada i tornada</option></select></div><label class="admin-checkbox"><input type="checkbox" name="consent" value="yes" checked={guest.food_data_consent} /> Tinc permís per a registrar estes dades alimentàries</label><label for={`observations-${guest.id}`}>Altres observacions</label><textarea id={`observations-${guest.id}`} name="observations" rows="3" maxlength="1000">{guest.observations}</textarea><p class="admin-guest__date">{guest.responded_at ? `Va respondre el ${guest.responded_at.toLocaleDateString('ca-ES')}` : 'Sense resposta'}</p><button class="button button--primary" type="submit">Guarda la resposta</button></form><form method="post" data-confirm="Vols llevar esta persona i eliminar la seua resposta?"><input type="hidden" name="action" value="removeGuest" /><input type="hidden" name="guestId" value={guest.id} /><button class="admin-link admin-link--danger" type="submit">Lleva la persona</button></form></article>)}
-      </div>
-      <form method="post" class="admin-add-guest"><input type="hidden" name="action" value="addGuest" /><label for="new-guest">Afig una persona a esta invitació</label><input id="new-guest" name="name" maxlength="160" required /><button class="button" type="submit">Afig</button></form>
-    </section>
-    <section class="admin-section admin-section--danger" aria-labelledby="delete-title"><div class="admin-section__heading"><div><p class="eyebrow">Elimina definitivament</p><h2 id="delete-title">Elimina la invitació</h2></div></div><p>S’eliminaran l’enllaç i les respostes de totes les persones d’esta invitació. Esta acció no es pot desfer.</p><form method="post" class="admin-form"><input type="hidden" name="action" value="delete" /><label for="confirmName">Escriu «{invitation.addressee}» per a confirmar</label><input id="confirmName" name="confirmName" autocomplete="off" required /><button type="submit" class="button">Elimina definitivament</button></form></section>
+    <AdminInvitationLink invitation={invitation} link={link} />
+    <AdminInvitationPersonalization invitation={invitation} groups={groups} />
+    <AdminInvitationGuests invitation={invitation} />
+    <AdminInvitationDanger invitation={invitation} />
+
   </div>
   <script>
-    document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((form) => form.addEventListener('submit', (event) => {
-      if (!window.confirm(form.dataset.confirm ?? 'Vols continuar?')) event.preventDefault();
-    }));
-    document.querySelectorAll<HTMLFormElement>('.admin-guest .admin-form').forEach((form) => {
+    const shell = document.querySelector<HTMLElement>('.admin-shell--detail');
+    const feedback = document.querySelector<HTMLElement>('[data-detail-feedback]');
+    const announce = (message: string, error = false) => {
+      if (!feedback) return;
+      feedback.hidden = false;
+      feedback.textContent = message;
+      feedback.className = `form-message form-message--${error ? 'error' : 'success'}`;
+      feedback.setAttribute('role', error ? 'alert' : 'status');
+    };
+    const syncBus = (form: HTMLFormElement) => {
       const bus = form.querySelector<HTMLSelectElement>('select[name="bus"]');
       const response = form.querySelector<HTMLSelectElement>('select[name="response"]');
       const route = form.querySelector<HTMLElement>('[data-admin-bus-route]');
       const routeSelect = route?.querySelector<HTMLSelectElement>('select');
-      const syncBus = () => {
-        const needsRoute = response?.value === 'yes' && bus?.value === 'yes';
-        if (route) route.hidden = !needsRoute;
-        if (routeSelect) routeSelect.required = needsRoute;
-      };
-      bus?.addEventListener('change', syncBus);
-      response?.addEventListener('change', syncBus);
-      syncBus();
+      const needsRoute = response?.value === 'yes' && bus?.value === 'yes';
+      if (route) route.hidden = !needsRoute;
+      if (routeSelect) routeSelect.required = needsRoute;
+    };
+    const dirtyForms = new WeakSet<HTMLFormElement>();
+    let saving = false;
+    const markDirty = (event: Event) => {
+      const form = (event.target as Element).closest<HTMLFormElement>('form');
+      if (form) dirtyForms.add(form);
+    };
+    shell?.addEventListener('input', markDirty);
+    shell?.addEventListener('change', markDirty);
+    const refreshFragments = async (part: 'edit' | 'state' | 'guests' | 'all', action?: string, guestId?: string) => {
+      const fragmentUrl = new URL(`${location.pathname.replace(/\/$/, '')}/fragmento`, location.origin);
+      fragmentUrl.searchParams.set('part', part);
+      const fragment = await fetch(fragmentUrl, { cache: 'no-store', headers: { Accept: 'text/html' } });
+      if (fragment.redirected && new URL(fragment.url).pathname === '/admin/login') { location.assign(fragment.url); return false; }
+      if (fragment.status === 404) { location.assign('/admin/gestion?deleted=1'); return false; }
+      if (!fragment.ok || !fragment.headers.get('content-type')?.includes('text/html')) throw new Error('No s’ha pogut actualitzar la invitació.');
+      const parsed = new DOMParser().parseFromString(await fragment.text(), 'text/html');
+      const incoming = parsed.querySelector<HTMLElement>('[data-detail-fragments]');
+      if (!incoming) throw new Error('No s’ha pogut actualitzar la invitació.');
+      for (const next of incoming.querySelectorAll<HTMLElement>('[data-detail-part]')) {
+        const current = shell?.querySelector<HTMLElement>(`[data-detail-part="${next.dataset.detailPart}"]`);
+        if (!current) throw new Error('No s’ha pogut actualitzar la invitació.');
+        if (part === 'guests' && action) {
+          const articles = [...current.querySelectorAll<HTMLElement>('[data-guest-id]')];
+          const freshArticles = [...next.querySelectorAll<HTMLElement>('[data-guest-id]')];
+          const existing = articles.find((article) => article.dataset.guestId === guestId);
+          if (action === 'editGuest') {
+            const fresh = freshArticles.find((article) => article.dataset.guestId === guestId);
+            if (!existing || !fresh) throw new Error('No s’ha pogut actualitzar la persona.');
+            existing.replaceWith(fresh);
+          } else if (action === 'removeGuest') {
+            if (!existing) throw new Error('No s’ha pogut actualitzar la persona.');
+            existing.remove();
+          } else if (action === 'addGuest') {
+            const list = current.querySelector<HTMLElement>('.admin-guests');
+            const known = new Set(articles.map((article) => article.dataset.guestId));
+            const added = freshArticles.filter((article) => !known.has(article.dataset.guestId));
+            if (!list || !added.length) throw new Error('No s’ha pogut actualitzar la persona.');
+            list.append(...added);
+          }
+          continue;
+        }
+        current.replaceWith(next);
+      }
+      shell?.querySelectorAll<HTMLFormElement>('.admin-guest .admin-form').forEach(syncBus);
+      const heading = shell?.querySelector<HTMLElement>('[data-detail-part="header"] h1');
+      if (heading) document.title = `${heading.textContent} · Invitacions`;
+      return true;
+    };
+    let lastRevision = shell?.dataset.adminRevision ?? '';
+    let checkingRevision = false;
+    const checkRevision = async () => {
+      if (document.hidden || checkingRevision) return;
+      checkingRevision = true;
+      try {
+        const response = await fetch(`/admin/revision?scope=detail&id=${encodeURIComponent(location.pathname.split('/').pop() ?? '')}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+        if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return; }
+        if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) return;
+        const { revision } = await response.json() as { revision?: string };
+        if (!revision) return;
+        if (!lastRevision) { lastRevision = revision; return; }
+        if (revision === lastRevision) return;
+        if (saving || [...(shell?.querySelectorAll<HTMLFormElement>('form') ?? [])].some((form) => dirtyForms.has(form))) {
+          announce('Hi ha dades noves. Guarda o descarta els canvis del formulari per a actualitzar la vista.');
+          return;
+        }
+        if (await refreshFragments('all')) lastRevision = revision;
+      } catch { /* The next visible poll retries. */ }
+      finally { checkingRevision = false; }
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) void checkRevision(); });
+    window.addEventListener('storage', (event) => { if (event.key === 'wedding.admin.changed' && !document.hidden) void checkRevision(); });
+    window.setInterval(() => { void checkRevision(); }, 60000);
+    shell?.querySelectorAll<HTMLFormElement>('.admin-guest .admin-form').forEach(syncBus);
+    shell?.addEventListener('change', (event) => {
+      const field = event.target;
+      if (!(field instanceof HTMLSelectElement) || !['bus', 'response'].includes(field.name)) return;
+      const form = field.closest<HTMLFormElement>('.admin-guest .admin-form');
+      if (form) syncBus(form);
     });
-    const copy = document.querySelector<HTMLButtonElement>('[data-copy-link]');
-    copy?.addEventListener('click', async () => {
-      const input = document.querySelector<HTMLInputElement>('#invitation-link');
-      const status = document.querySelector<HTMLElement>('[data-copy-status]');
+    shell?.addEventListener('submit', async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      const action = form.querySelector<HTMLInputElement>('input[name="action"]')?.value;
+      const guestId = form.querySelector<HTMLInputElement>('input[name="guestId"]')?.value;
+      const postedName = form.querySelector<HTMLInputElement>('input[name="name"]')?.value;
+      if (!action) return;
+      event.preventDefault();
+      if (form.dataset.confirm && !window.confirm(form.dataset.confirm)) return;
+      const button = (event as SubmitEvent).submitter instanceof HTMLButtonElement
+        ? (event as SubmitEvent).submitter as HTMLButtonElement
+        : form.querySelector<HTMLButtonElement>('[type="submit"]');
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+      saving = true;
+      let saved = false;
+      try {
+        const response = await fetch(form.getAttribute('action') ?? location.href, {
+          method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' }, cache: 'no-store',
+        });
+        if (response.redirected && new URL(response.url).pathname === '/admin/login') { location.assign(response.url); return; }
+        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('No s’ha pogut guardar els canvis.');
+        const result = await response.json() as { error?: string; redirect?: string; part?: 'edit' | 'state' | 'guests'; revision?: string };
+        if (!response.ok) throw new Error(result.error ?? 'No s’ha pogut guardar els canvis.');
+        saved = true;
+        if (result.revision) lastRevision = result.revision;
+        try { localStorage.setItem('wedding.admin.changed', String(Date.now())); } catch { /* Storage can be unavailable. */ }
+        if (result.redirect) { location.assign(result.redirect); return; }
+        if (!result.part) throw new Error('No s’ha pogut actualitzar la invitació.');
+        await refreshFragments(result.part, action, guestId);
+        const nameInput = form.querySelector<HTMLInputElement>('input[name="name"]');
+        if (action === 'addGuest' && nameInput && nameInput.value === postedName) nameInput.value = '';
+        if (action !== 'addGuest' || nameInput?.value === '') dirtyForms.delete(form);
+        announce('Canvis guardats.');
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : 'No s’ha pogut guardar els canvis.';
+        announce(saved ? `Canvis guardats. ${message} Recarrega la pàgina per a veure’ls.` : message, !saved);
+      } finally {
+        saving = false;
+        form.removeAttribute('aria-busy');
+        button.disabled = false;
+      }
+    });
+    shell?.addEventListener('click', async (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-copy-link]');
+      if (!button) return;
+      const input = shell.querySelector<HTMLInputElement>('#invitation-link');
+      const status = shell.querySelector<HTMLElement>('[data-copy-status]');
       if (!input || !status) return;
       try { await navigator.clipboard.writeText(input.value); status.textContent = 'Enllaç copiat.'; }
       catch { input.focus(); input.select(); status.textContent = 'Selecciona l’enllaç i copia’l manualment.'; }

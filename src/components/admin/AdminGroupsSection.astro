@@ -1,0 +1,32 @@
+---
+import AdminPagination from './AdminPagination.astro';
+import { paginateItems } from '../../lib/pagination';
+import type { InvitationGroup } from '../../lib/invitations.server';
+interface Props { groups: InvitationGroup[]; rawPage: string | null }
+const { groups, rawPage } = Astro.props;
+const groupPage = paginateItems(groups, rawPage);
+const groupPageHref = (page: number) => `/admin/gestion?view=grups&page=${page}`;
+---
+<main data-admin-groups class="admin-section" aria-labelledby="groups-title">
+      <div class="admin-section__heading"><div><p class="eyebrow">Organitza</p><h2 id="groups-title">Grups i idiomes</h2></div></div>
+      <section aria-labelledby="create-group-title"><h3 id="create-group-title">Afig un grup</h3><form method="post" action="/admin/gestion?view=grups" class="admin-form"><input type="hidden" name="action" value="createGroup" /><label for="new-group-name">Nom del grup</label><input id="new-group-name" name="name" maxlength="160" required placeholder="Per exemple: família d’Ucraïna" /><label for="new-group-locale">Idioma</label><select id="new-group-locale" name="locale"><option value="es">Valencià</option><option value="uk">Українська</option></select><button class="button button--primary" type="submit">Crea el grup</button></form></section>
+      <section class="admin-group-list" aria-labelledby="current-groups-title">
+        <h3 id="current-groups-title">Grups existents</h3>
+        <p>Les invitacions d’un grup utilitzen el seu idioma. Si el canvies, també canvien els enllaços.</p>
+        {groups.length ? <>
+          {groupPage.items.map((group) => <form id={`group-form-${group.id}`} method="post" action={groupPageHref(groupPage.page)}><input type="hidden" name="action" value="editGroup" /><input type="hidden" name="groupId" value={group.id} /></form>)}
+          <p id="group-scroll-hint" class="admin-group-table__hint">Desplaça la taula cap a la dreta per a veure l’idioma i guardar els canvis.</p>
+          <div class="admin-group-table-wrap" role="region" aria-label="Taula de grups" aria-describedby="group-scroll-hint" tabindex="0">
+            <table class="admin-group-table">
+              <thead><tr><th scope="col">Nom del grup</th><th scope="col">Idioma del grup</th><th scope="col">Acció</th></tr></thead>
+              <tbody>{groupPage.items.map((group) => <tr>
+                <td><label class="admin-group-table__hidden-label" for={`group-name-${group.id}`}>Nom del grup {group.name}</label><input id={`group-name-${group.id}`} form={`group-form-${group.id}`} name="name" value={group.name} maxlength="160" required /></td>
+                <td><label class="admin-group-table__hidden-label" for={`group-locale-${group.id}`}>Idioma del grup {group.name}</label><select id={`group-locale-${group.id}`} form={`group-form-${group.id}`} name="locale"><option value="es" selected={group.locale === 'es'}>Valencià</option><option value="uk" selected={group.locale === 'uk'}>Українська</option></select></td>
+                <td><button class="button" form={`group-form-${group.id}`} type="submit" aria-label={`Guarda el grup ${group.name}`}>Guarda el grup</button></td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <AdminPagination {...groupPage} label="grups" href={groupPageHref} />
+        </> : <p class="admin-empty">Encara no hi ha grups. Afig el primer grup amb el formulari de dalt.</p>}
+      </section>
+    </main>

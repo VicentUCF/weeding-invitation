@@ -1,0 +1,17 @@
+---
+import AdminGroupsSection from '../../../components/admin/AdminGroupsSection.astro';
+import { requireAdmin } from '../../../lib/auth.server';
+import { ensureValenciaGroup, listGroups } from '../../../lib/invitations.server';
+
+export const prerender = false;
+export const partial = true;
+if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+let groups = await listGroups();
+if (!groups.some((group) => group.name === 'Valencia')) {
+  await ensureValenciaGroup();
+  groups = await listGroups();
+}
+---
+<AdminGroupsSection groups={groups} rawPage={Astro.url.searchParams.get('page')} />
