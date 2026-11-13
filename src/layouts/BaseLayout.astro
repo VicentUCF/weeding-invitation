@@ -3,10 +3,14 @@ import '../styles/main.scss';
 import { ClientRouter } from 'astro:transitions';
 import { wedding } from '../config/wedding';
 import { htmlLang, t, type Locale } from '../lib/i18n';
-interface Props { title?: string; privatePage?: boolean; preview?: boolean; locale?: Locale; clientNavigation?: boolean }
-const { privatePage = false, preview = false, locale = 'es', clientNavigation = false } = Astro.props;
+interface Props { title?: string; privatePage?: boolean; preview?: boolean; locale?: Locale; clientNavigation?: boolean; socialPreview?: boolean }
+const { privatePage = false, preview = false, locale = 'es', clientNavigation = false, socialPreview = false } = Astro.props;
 const c = t(locale);
 const title = Astro.props.title ?? `${c.title} ${wedding.couple.join(locale === 'uk' ? ' та ' : ' i ')}`;
+const socialTitle = locale === 'uk' ? 'Весільне запрошення · Jose та Anas' : 'Invitació de boda · Jose i Anas';
+const socialDescription = locale === 'uk' ? '30 жовтня 2027 року ми одружуємося. Відкрийте запрошення та підтвердьте присутність.' : 'Ens casem el 30 d’octubre de 2027. Obri la invitació i confirma l’assistència.';
+const socialImage = new URL(locale === 'uk' ? '/images/invitation-share-uk.jpg' : '/images/invitation-share-ca.jpg', Astro.url.origin).href;
+const socialUrl = new URL(Astro.url.pathname, Astro.url.origin).href;
 if (privatePage) {
   Astro.response.headers.set('Cache-Control', 'private, no-store');
   Astro.response.headers.set('Referrer-Policy', 'no-referrer');
@@ -21,6 +25,19 @@ if (privatePage) {
     {(privatePage || preview) && <meta name="robots" content="noindex, nofollow" />}
     {privatePage && <meta name="referrer" content="no-referrer" />}
     <meta name="description" content={c.description} />
+    {socialPreview && <>
+      <meta property="og:type" content="website" />
+      <meta property="og:title" content={socialTitle} />
+      <meta property="og:description" content={socialDescription} />
+      <meta property="og:url" content={socialUrl} />
+      <meta property="og:locale" content={locale === 'uk' ? 'uk_UA' : 'ca_ES'} />
+      <meta property="og:image" content={socialImage} />
+      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt" content={locale === 'uk' ? 'Закритий весільний конверт із зеленою печаткою із собакою.' : 'Sobre de boda tancat amb un segell verd amb el gos.'} />
+      <meta name="twitter:card" content="summary_large_image" />
+    </>}
     <title>{title}</title>
     {clientNavigation && <ClientRouter fallback="swap" />}
   </head>

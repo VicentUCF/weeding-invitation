@@ -34,6 +34,8 @@ volta run --node 24.15.0 npm install
 
    `PUBLIC_SITE_URL` debe ser el origen público HTTPS de la invitación, sin rutas ni parámetros (por ejemplo, `https://boda.tudominio.com`). El panel usa esta variable para los mensajes y enlaces que se comparten. En desarrollo también acepta `http://localhost:4321` para probar la copia del mensaje; ese enlace solo funciona en el propio ordenador. En producción, una dirección local no habilita los botones de copia.
 
+   Las invitaciones privadas incluyen una miniatura de enlace en valenciano o ucraniano. Para ver esa vista previa en WhatsApp, la URL de la invitación y la imagen deben ser accesibles desde una dirección pública HTTPS; `localhost` solo permite comprobar el HTML y la copia del mensaje en desarrollo.
+
 4. Arranca la app:
 
    ```sh

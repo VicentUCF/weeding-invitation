@@ -14,7 +14,7 @@ interface Props { recipient?: InvitationRecipient; invitation?: Invitation; rsvp
 const { recipient, invitation, rsvpSettings, rsvpError, rsvpSaved, rsvpSubmitted, preview = false, locale = 'es' } = Astro.props;
 const c = t(locale);
 ---
-<BaseLayout preview={preview} privatePage={!preview} locale={locale}>
+<BaseLayout preview={preview} privatePage={!preview} locale={locale} socialPreview={!preview && Boolean(invitation)}>
   <script is:inline>
     document.documentElement.classList.add('has-js');
     window.setTimeout(() => {

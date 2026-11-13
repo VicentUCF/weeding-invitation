@@ -20,7 +20,7 @@ const localPreview = siteOrigin && new URL(siteOrigin).hostname === 'localhost';
 ---
 <div data-management-results>
   {!siteOrigin && <p class="form-message form-message--error" role="status">Configura PUBLIC_SITE_URL amb l’adreça pública HTTPS de la invitació, o amb localhost per a provar-la en desenvolupament.</p>}
-  {localPreview && <p class="admin-management-filter-note">Enllaç local de prova: només funcionarà en este ordinador.</p>}
+  {localPreview && <p class="admin-management-filter-note">Enllaç local de prova: la miniatura de WhatsApp necessita una adreça pública HTTPS.</p>}
   {note && <p class="admin-management-filter-note">Es mostren invitacions {note}.</p>}
   {page.items.length ? <div class="admin-table-wrap"><table class="admin-table admin-table--management"><thead><tr><th scope="col"><span class="admin-table__label"><AdminIcon name="person" />Nom</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="group" />Grup</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="copy" />Missatge</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="send" />Enviament</span></th><th scope="col"><span class="admin-table__label"><AdminIcon name="manage" />Gestió</span></th></tr></thead><tbody>{page.items.map((invitation) => {
     const link = publicInvitationLink(invitationToken(invitation.token_encrypted), invitation.locale, siteUrl, allowLocal);
