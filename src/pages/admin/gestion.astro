@@ -148,7 +148,7 @@ const view = !viewParam && error && submittedName ? 'nova' : requestedView;
         <label for="invitation-group">Grup<select id="invitation-group" name="group"><option value="all" selected={groupFilter === 'all'}>Tots</option><option value="none" selected={groupFilter === 'none'}>Sense grup</option>{groups.map((group) => <option value={group.id} selected={groupFilter === group.id}>{group.name}</option>)}</select></label>
         <button class="button" type="submit">Filtra</button>
       </form>
-      <AdminInvitationResults page={managementPage} filters={filters} origin={Astro.url.origin} />
+      <AdminInvitationResults page={managementPage} filters={filters} />
       <p class="admin-copy-status" data-copy-status role="status" aria-live="polite"></p>
     </main>}
     {(view === 'invitacions' || view === 'nova') && <dialog class="admin-dialog" aria-labelledby="new-title" open={view === 'nova'} data-invitation-dialog>

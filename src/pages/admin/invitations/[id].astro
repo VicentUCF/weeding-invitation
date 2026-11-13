@@ -8,9 +8,11 @@ import AdminInvitationGuests from '../../../components/admin/AdminInvitationGues
 import AdminInvitationDanger from '../../../components/admin/AdminInvitationDanger.astro';
 import { requireAdmin } from '../../../lib/auth.server';
 import { sameOrigin } from '../../../lib/security.server';
-import { adminDataRevision, invitationById, listGroups, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, deleteInvitation } from '../../../lib/invitations.server';
+import { adminDataRevision, invitationById, listGroups, listGuestChoices, invitationToken, updateInvitation, updateInvitationState, addGuest, updateGuest, removeGuest, linkGuests, unlinkGuest, deleteInvitation } from '../../../lib/invitations.server';
 import { invitationInput, guestInput, formField, requiredField } from '../../../lib/forms.server';
 import { invitationPath } from '../../../lib/i18n';
+import { publicInvitationLink } from '../../../lib/invitation-message';
+import { env } from '../../../lib/env.server';
 export const prerender = false;
 if (!await requireAdmin(Astro)) return Astro.redirect('/admin/login', 303);
 const id = Astro.params.id ?? '';
@@ -43,10 +45,16 @@ if (Astro.request.method === 'POST') {
     else if (action === 'addGuest') {
       if (invitation.guests.length >= 20) throw new Error('Una invitació admet fins a 20 persones.');
       await addGuest(id, requiredField(formField(data, 'name'), 160, 'Nom'));
-    } else if (action === 'editGuest' || action === 'removeGuest') {
+    } else if (action === 'linkGuests') {
+      const firstId = formField(data, 'firstGuestId');
+      const secondId = formField(data, 'secondGuestId');
+      if (![firstId, secondId].every((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))) throw new Error('Selecciona dues persones vàlides.');
+      await linkGuests(firstId, secondId, id);
+    } else if (action === 'editGuest' || action === 'removeGuest' || action === 'unlinkGuest') {
       const guestId = formField(data, 'guestId');
       if (!invitation.guests.some((guest) => guest.id === guestId)) throw new Error('No hem trobat esta persona.');
-      if (action === 'removeGuest') {
+      if (action === 'unlinkGuest') await unlinkGuest(guestId, id);
+      else if (action === 'removeGuest') {
         if (invitation.guests.length <= 1) throw new Error('La invitació ha d’incloure almenys una persona.');
         await removeGuest(guestId, id);
       } else await updateGuest(guestId, id, guestInput(data));
@@ -60,7 +68,11 @@ if (Astro.request.method === 'POST') {
   invitation = (await invitationById(id))!;
 }
 const groups = await listGroups();
-const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.token_encrypted), invitation.locale)}`;
+const choices = await listGuestChoices();
+const token = invitationToken(invitation.token_encrypted);
+const allowLocal = import.meta.env.DEV || ['localhost', '127.0.0.1', '[::1]'].includes(Astro.url.hostname);
+const publicLink = publicInvitationLink(token, invitation.locale, env('PUBLIC_SITE_URL'), allowLocal);
+const link = publicLink ?? `${Astro.url.origin}${invitationPath(token, invitation.locale)}`;
 ---
 <BaseLayout title={`${invitation.addressee} · Invitacions`} privatePage>
   <div class="admin-shell admin-shell--detail" data-admin-revision={dataRevision}>
@@ -68,11 +80,11 @@ const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.tok
     <AdminNav active="invitacions" />
     <p class="form-message" data-detail-feedback role="status" hidden></p>
     {error && <p class="form-message form-message--error" role="alert">{error}</p>}
-    {Astro.url.searchParams.has('created') && <p class="form-message form-message--success" role="status">Invitació creada. Copia l’enllaç per a compartir-la.</p>}
+    {Astro.url.searchParams.has('created') && <p class="form-message form-message--success" role="status">{publicLink ? 'Invitació creada. Copia l’enllaç per a compartir-la.' : 'Invitació creada. Configura el domini públic abans de compartir-la.'}</p>}
     {Astro.url.searchParams.has('saved') && <p class="form-message form-message--success" role="status">Canvis guardats.</p>}
-    <AdminInvitationLink invitation={invitation} link={link} />
+    <AdminInvitationLink invitation={invitation} link={link} shareable={Boolean(publicLink)} />
     <AdminInvitationPersonalization invitation={invitation} groups={groups} />
-    <AdminInvitationGuests invitation={invitation} />
+    <AdminInvitationGuests invitation={invitation} choices={choices} />
     <AdminInvitationDanger invitation={invitation} />
 
   </div>
@@ -116,7 +128,7 @@ const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.tok
       for (const next of incoming.querySelectorAll<HTMLElement>('[data-detail-part]')) {
         const current = shell?.querySelector<HTMLElement>(`[data-detail-part="${next.dataset.detailPart}"]`);
         if (!current) throw new Error('No s’ha pogut actualitzar la invitació.');
-        if (part === 'guests' && action) {
+        if (part === 'guests' && action && action !== 'linkGuests' && action !== 'unlinkGuest') {
           const articles = [...current.querySelectorAll<HTMLElement>('[data-guest-id]')];
           const freshArticles = [...next.querySelectorAll<HTMLElement>('[data-guest-id]')];
           const existing = articles.find((article) => article.dataset.guestId === guestId);
@@ -134,6 +146,9 @@ const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.tok
             if (!list || !added.length) throw new Error('No s’ha pogut actualitzar la persona.');
             list.append(...added);
           }
+          const partnerControls = current.querySelector<HTMLElement>('.admin-partners');
+          const freshPartnerControls = next.querySelector<HTMLElement>('.admin-partners');
+          if (partnerControls && freshPartnerControls && !dirtyForms.has(partnerControls.querySelector('form')!)) partnerControls.replaceWith(freshPartnerControls);
           continue;
         }
         current.replaceWith(next);
@@ -183,6 +198,7 @@ const link = `${Astro.url.origin}${invitationPath(invitationToken(invitation.tok
       if (!action) return;
       event.preventDefault();
       if (form.dataset.confirm && !window.confirm(form.dataset.confirm)) return;
+      if (['linkGuests', 'unlinkGuest'].includes(action) && [...(shell?.querySelectorAll<HTMLFormElement>('form') ?? [])].some((other) => other !== form && dirtyForms.has(other)) && !window.confirm('Hi ha canvis sense guardar en altres formularis. Vols continuar i descartar-los?')) return;
       const button = (event as SubmitEvent).submitter instanceof HTMLButtonElement
         ? (event as SubmitEvent).submitter as HTMLButtonElement
         : form.querySelector<HTMLButtonElement>('[type="submit"]');

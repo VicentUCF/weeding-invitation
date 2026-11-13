@@ -11,9 +11,11 @@ const cell = (value: unknown) => {
 export const GET: APIRoute = async (context) => {
   if (!await requireAdmin(context)) return context.redirect('/admin/login', 303);
   const [invitations, groups] = await Promise.all([listInvitations(), listGroups()]);
-  const rows = [['Invitació', 'Grup', 'Idioma', 'Correu', 'Enviada', 'Revocada', 'Persona convidada', 'Resposta', 'Plaça a l’autobús', 'Trajecte de l’autobús', 'Al·lèrgies i intoleràncies', 'Observacions', 'Data de resposta']];
+  const people = new Map(invitations.flatMap((invitation) => invitation.guests.map((guest) => [guest.id, { guest, invitation }] as const)));
+  const rows = [['Invitació', 'Grup', 'Idioma', 'Correu', 'Enviada', 'Revocada', 'Persona convidada', 'Parella', 'Invitació de la parella', 'Resposta', 'Plaça a l’autobús', 'Trajecte de l’autobús', 'Al·lèrgies i intoleràncies', 'Observacions', 'Data de resposta']];
   for (const invitation of invitations) for (const guest of invitation.guests) rows.push([
     invitation.addressee, groups.find((group) => group.id === invitation.group_id)?.name ?? '', localeName[invitation.locale], invitation.email ?? '', invitation.sent_at?.toISOString() ?? '', invitation.revoked_at?.toISOString() ?? '', guest.name,
+    guest.partner_id ? people.get(guest.partner_id)?.guest.name ?? '' : '', guest.partner_id ? people.get(guest.partner_id)?.invitation.addressee ?? '' : '',
     guest.response === 'yes' ? 'Assistirà' : guest.response === 'no' ? 'No assistirà' : 'Pendent', guest.bus_seat === true ? 'Sí' : guest.bus_seat === false ? 'No' : '', guest.bus_route === 'outbound' ? 'Només anada' : guest.bus_route === 'return' ? 'Només tornada' : guest.bus_route === 'both' ? 'Anada i tornada' : '', guest.allergies, guest.observations, guest.responded_at?.toISOString() ?? '',
   ]);
   return new Response('\ufeff' + rows.map((row) => row.map(cell).join(',')).join('\r\n'), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="respostes-boda.csv"', 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' } });

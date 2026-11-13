@@ -10,6 +10,7 @@ export type ResponseStatus = 'pending' | 'yes' | 'no';
 export type BusRoute = 'outbound' | 'return' | 'both';
 export interface Guest {
   id: string; invitation_id: string; name: string; response: ResponseStatus;
+  partner_id: string | null;
   allergies: string; observations: string; bus_seat: boolean | null; bus_route: BusRoute | null; food_data_consent: boolean;
   responded_at: Date | null;
 }
@@ -67,7 +68,7 @@ export async function updateGroup(id: string, name: string, locale: Locale) {
 async function attachGuests<T extends Omit<Invitation, 'guests'>>(rows: T[]): Promise<(T & { guests: Guest[] })[]> {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
-  const guests = (await db().query<Guest>('select id, invitation_id, name, response, allergies, observations, bus_seat, bus_route, food_data_consent, responded_at from wedding.guests where invitation_id = any($1::uuid[]) order by invitation_id, sort_order, created_at, id', [ids])).rows;
+  const guests = (await db().query<Guest>('select id, invitation_id, name, partner_id, response, allergies, observations, bus_seat, bus_route, food_data_consent, responded_at from wedding.guests where invitation_id = any($1::uuid[]) order by invitation_id, sort_order, created_at, id', [ids])).rows;
   const byInvitation = new Map<string, Guest[]>();
   for (const guest of guests) {
     const group = byInvitation.get(guest.invitation_id) ?? [];
@@ -213,11 +214,61 @@ export async function addGuest(invitationId: string, name: string) {
 export async function updateGuest(id: string, invitationId: string, input: { name: string; response: ResponseStatus; allergies: string; observations: string; busSeat: boolean | null; busRoute: BusRoute | null; consent: boolean }) {
   await db().query(`update wedding.guests set name=$3, response=$4::text, allergies=$5, dietary_notes='', observations=$6, food_data_consent=$7, bus_seat=$8, bus_route=$9, responded_at=case when $4::text='pending' then null else coalesce(responded_at, now()) end, updated_at=now() where id=$1 and invitation_id=$2`, [id, invitationId, input.name, input.response, input.response === 'yes' ? input.allergies : '', input.response === 'yes' ? input.observations : '', input.response === 'yes' && input.consent, input.busSeat, input.busRoute]);
 }
+// Pair changes and deletions share one transaction lock so both sides stay in sync.
+const pairLockSql = "select pg_advisory_xact_lock(hashtext('wedding.guest_pairs'))";
 export async function removeGuest(id: string, invitationId: string) {
-  await db().query('delete from wedding.guests where id=$1 and invitation_id=$2', [id, invitationId]);
+  const client = await db().connect();
+  try {
+    await client.query('begin');
+    await client.query(pairLockSql);
+    await client.query('update wedding.guests set partner_id=null, updated_at=now() where partner_id in (select id from wedding.guests where id=$1 and invitation_id=$2)', [id, invitationId]);
+    await client.query('delete from wedding.guests where id=$1 and invitation_id=$2', [id, invitationId]);
+    await client.query('commit');
+  } catch (error) { await client.query('rollback'); throw error; }
+  finally { client.release(); }
+}
+export interface GuestChoice { id: string; invitation_id: string; name: string; addressee: string; partner_id: string | null }
+export async function listGuestChoices(): Promise<GuestChoice[]> {
+  return (await db().query<GuestChoice>('select g.id, g.invitation_id, g.name, i.addressee, g.partner_id from wedding.guests g join wedding.invitations i on i.id=g.invitation_id order by lower(g.name), lower(i.addressee), g.id')).rows;
+}
+export async function linkGuests(firstId: string, secondId: string, invitationId: string) {
+  if (firstId === secondId) throw new Error('Selecciona dues persones diferents.');
+  const client = await db().connect();
+  try {
+    await client.query('begin');
+    await client.query(pairLockSql);
+    const people = (await client.query<GuestChoice>('select g.id, g.invitation_id, g.name, i.addressee, g.partner_id from wedding.guests g join wedding.invitations i on i.id=g.invitation_id where g.id=any($1::uuid[]) for update of g', [[firstId, secondId]])).rows;
+    if (people.length !== 2 || !people.some((person) => person.id === firstId && person.invitation_id === invitationId)) throw new Error('No hem trobat estes persones.');
+    if (people.some((person) => person.partner_id)) throw new Error('Una de les persones ja té parella. Desvincula-la abans.');
+    if (people[0].invitation_id === people[1].invitation_id) throw new Error('Selecciona persones d’invitacions diferents.');
+    await client.query('update wedding.guests set partner_id=$2, updated_at=now() where id=$1', [firstId, secondId]);
+    await client.query('update wedding.guests set partner_id=$2, updated_at=now() where id=$1', [secondId, firstId]);
+    await client.query('commit');
+  } catch (error) { await client.query('rollback'); throw error; }
+  finally { client.release(); }
+}
+export async function unlinkGuest(id: string, invitationId: string) {
+  const client = await db().connect();
+  try {
+    await client.query('begin');
+    await client.query(pairLockSql);
+    const person = (await client.query<{ partner_id: string | null }>('select partner_id from wedding.guests where id=$1 and invitation_id=$2 for update', [id, invitationId])).rows[0];
+    if (!person) throw new Error('No hem trobat esta persona.');
+    if (person.partner_id) await client.query('update wedding.guests set partner_id=null, updated_at=now() where id=$1 or id=$2', [id, person.partner_id]);
+    await client.query('commit');
+  } catch (error) { await client.query('rollback'); throw error; }
+  finally { client.release(); }
 }
 export async function deleteInvitation(id: string) {
-  await db().query('delete from wedding.invitations where id=$1', [id]);
+  const client = await db().connect();
+  try {
+    await client.query('begin');
+    await client.query(pairLockSql);
+    await client.query('update wedding.guests set partner_id=null, updated_at=now() where partner_id in (select id from wedding.guests where invitation_id=$1)', [id]);
+    await client.query('delete from wedding.invitations where id=$1', [id]);
+    await client.query('commit');
+  } catch (error) { await client.query('rollback'); throw error; }
+  finally { client.release(); }
 }
 export async function saveSettings(input: Settings) {
   await db().query('update wedding.settings set rsvp_enabled=$1, rsvp_deadline=$2, updated_at=now() where id=true', [input.rsvp_enabled, input.rsvp_deadline]);

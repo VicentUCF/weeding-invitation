@@ -261,6 +261,11 @@ h3 { font-size: 1.65rem; }
 .admin-guest { padding: 1.3rem; border: 1px solid $line; background: #fffdfb; }
 .admin-guest__date { margin: .35rem 0; color: $muted; font-size: .76rem; }
 .admin-guest > form:last-child { margin-top: .6rem; }
+.admin-guest__partner { margin-top: 1rem; padding: .7rem 0; border-top: 1px solid $line; }
+.admin-guest__partner p { margin: 0 0 .4rem; }
+.admin-partners { margin-top: 1.7rem; padding-top: 1.3rem; border-top: 1px solid $line; }
+.admin-partners h3 { margin: 0; }
+.admin-partners p { margin: .4rem 0 1rem; }
 .admin-add-guest { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; margin-top: 1.5rem; }
 .admin-add-guest input { flex: 1; min-width: 12rem; max-width: 22rem; }
 .admin-nav--tabs a { display: inline-block; padding: .45rem .7rem; border-radius: .3rem; }

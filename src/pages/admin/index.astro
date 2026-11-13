@@ -36,6 +36,11 @@ try { [invitations, groups] = await Promise.all([listInvitations(), listGroups()
 catch { error = 'No podem carregar les dades. Torna a provar-ho més tard.'; }
 const summary = adminSummary(invitations);
 const rows = invitations.flatMap((invitation) => invitation.guests.map((guest) => ({ invitation, guest })));
+const peopleById = new Map(rows.map((row) => [row.guest.id, row]));
+const couples = rows.flatMap((first) => {
+  const second = first.guest.partner_id ? peopleById.get(first.guest.partner_id) : undefined;
+  return second && first.guest.id < second.guest.id ? [{ first, second }] : [];
+});
 const activeRows = rows.filter(({ invitation, guest }) => !invitation.revoked_at && guest.response === 'yes');
 const foodRows = activeRows.filter(({ guest }) => guest.allergies.trim());
 const foodNotesRows = activeRows.filter(({ guest }) => guest.observations.trim());
@@ -121,6 +126,11 @@ const toTableRows = (items: typeof activeRows, detail: (guest: (typeof activeRow
         <div class="dashboard-groups__chart" style={`height:${Math.max(170, groupBreakdown.length * 48)}px`}><canvas data-chart="groups" data-groups={JSON.stringify(groupBreakdown)} aria-hidden="true"></canvas></div>
         <ul class="dashboard-group-list">{groupBreakdown.map((group) => <li><span>{group.name}</span><strong>{group.count}</strong></li>)}</ul>
       </section>}
+
+      <section class="admin-section dashboard-panel dashboard-couples" aria-labelledby="couples-title">
+        <div class="dashboard-panel__heading"><div><p class="eyebrow">Organització</p><h2 id="couples-title">Parelles vinculades</h2></div><span class="dashboard-panel__tag">{couples.length} parelles</span></div>
+        {couples.length ? <div class="dashboard-dialog__table-scroll" role="region" aria-labelledby="couples-title" tabindex="0"><table class="dashboard-dialog__table"><thead><tr><th scope="col">Persona i invitació</th><th scope="col">Parella i invitació</th></tr></thead><tbody>{couples.map(({ first, second }) => <tr><td><a href={`/admin/invitations/${first.invitation.id}`}>{first.guest.name}</a><br /><small>{first.invitation.addressee}</small></td><td><a href={`/admin/invitations/${second.invitation.id}`}>{second.guest.name}</a><br /><small>{second.invitation.addressee}</small></td></tr>)}</tbody></table></div> : <p class="dashboard-panel__copy">Encara no hi ha parelles vinculades. Pots vincular-les des de la fitxa d’una invitació.</p>}
+      </section>
 
       <div class="admin-overview-grid dashboard-operations">
         <section class="admin-section dashboard-operation" aria-labelledby="food-overview">

@@ -17,7 +17,7 @@ const [page, groups] = await Promise.all([
   includeGroups ? listGroups() : Promise.resolve([]),
 ]);
 ---
-<AdminInvitationResults page={page} filters={filters} origin={Astro.url.origin} />
+<AdminInvitationResults page={page} filters={filters} />
 {includeGroups && <template data-management-group-options>
   <select data-filter-options><option value="all">Tots</option><option value="none">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name}</option>)}</select>
   <select data-edit-options><option value="">Sense grup</option>{groups.map((group) => <option value={group.id}>{group.name} · {localeName[group.locale]}</option>)}</select>

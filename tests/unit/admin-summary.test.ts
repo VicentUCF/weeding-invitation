@@ -3,7 +3,7 @@ import { adminSummary } from '../../src/lib/admin-summary';
 import type { Guest, Invitation } from '../../src/lib/invitations.server';
 
 const guest = (id: string, values: Partial<Guest> = {}): Guest => ({
-  id, invitation_id: 'inv', name: id, response: 'pending', allergies: '', observations: '', bus_seat: null, bus_route: null, food_data_consent: false, responded_at: null, ...values,
+  id, invitation_id: 'inv', name: id, partner_id: null, response: 'pending', allergies: '', observations: '', bus_seat: null, bus_route: null, food_data_consent: false, responded_at: null, ...values,
 });
 const invitation = (guests: Guest[], revoked = false): Invitation => ({
   id: 'inv', addressee: 'Família', email: null, personal_note: null, personal_note_uk: null, group_id: null, locale: 'es', token_encrypted: '', sent_at: null, revoked_at: revoked ? new Date() : null, created_at: new Date(), guests,

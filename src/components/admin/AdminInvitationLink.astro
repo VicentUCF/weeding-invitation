@@ -1,11 +1,14 @@
 ---
 import type { Invitation } from '../../lib/invitations.server';
-interface Props { invitation: Invitation; link: string }
-const { invitation, link } = Astro.props;
+interface Props { invitation: Invitation; link: string; shareable: boolean }
+const { invitation, link, shareable } = Astro.props;
+const localPreview = shareable && new URL(link).hostname === 'localhost';
 ---
 <section data-detail-part="link" class="admin-section" aria-labelledby="enlace-title"><div class="admin-section__heading"><div><p class="eyebrow">Compartix</p><h2 id="enlace-title">Enllaç privat</h2></div></div>
       <p>Compartix-lo només amb les persones convidades. Qualsevol persona que tinga l’enllaç podrà veure i canviar les respostes.</p>
-      <div class="admin-linkbox"><input id="invitation-link" readonly value={link} aria-label="Enllaç de la invitació" /><button type="button" class="button" data-copy-link>Copia l’enllaç</button></div>
+      {!shareable && <p class="form-message form-message--error" role="status">Configura PUBLIC_SITE_URL amb l’adreça pública HTTPS de la invitació, o amb localhost per a provar-la en desenvolupament.</p>}
+      {localPreview && <p class="admin-management-filter-note">Enllaç local de prova: només funcionarà en este ordinador.</p>}
+      <div class="admin-linkbox"><input id="invitation-link" readonly value={link} aria-label="Enllaç de la invitació" /><button type="button" class="button" data-copy-link disabled={!shareable}>Copia l’enllaç</button></div>
       <p class="admin-copy-status" data-copy-status role="status"></p>
       <div class="admin-actions">
         <a class="button" href={link} target="_blank" rel="noopener noreferrer">Obri la invitació</a>

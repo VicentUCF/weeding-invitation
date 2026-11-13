@@ -84,6 +84,16 @@ do $$ begin
 end $$;
 create index if not exists guests_invitation_idx on wedding.guests (invitation_id);
 create index if not exists guests_response_idx on wedding.guests (response);
+alter table wedding.guests add column if not exists partner_id uuid;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conrelid = 'wedding.guests'::regclass and conname = 'guests_partner_id_fkey') then
+    alter table wedding.guests add constraint guests_partner_id_fkey foreign key (partner_id) references wedding.guests(id) on delete set null;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'wedding.guests'::regclass and conname = 'guests_partner_not_self') then
+    alter table wedding.guests add constraint guests_partner_not_self check (partner_id is null or partner_id <> id);
+  end if;
+end $$;
+create unique index if not exists guests_partner_id_unique on wedding.guests (partner_id) where partner_id is not null;
 
 -- The private schema is reachable only through the server's direct PostgreSQL connection.
 revoke all on all tables in schema wedding from public;

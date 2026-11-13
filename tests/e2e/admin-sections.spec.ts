@@ -64,6 +64,29 @@ test('invitation guest edit replaces only the guests fragment', async ({ page })
   expect(await page.evaluate(() => (window as typeof window & { originalDocument?: Document }).originalDocument === document)).toBe(true);
 });
 
+test('pair links refresh the guest section and can be removed', async ({ page }) => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  let linked = false;
+  const section = () => `<section data-detail-part="guests"><div class="admin-guests"><article data-guest-id="first"><p>Maria</p>${linked ? `<div class="admin-guest__partner"><a href="/admin/invitations/22222222-2222-4222-8222-222222222222">Joan · Invitació de Joan</a><form method="post"><input type="hidden" name="action" value="unlinkGuest"><input type="hidden" name="guestId" value="first"><button type="submit">Desvincula la parella</button></form></div>` : ''}</article></div><div class="admin-partners"><form method="post"><input type="hidden" name="action" value="linkGuests"><label for="pair-first">Persona d’esta invitació</label><select id="pair-first" name="firstGuestId"><option value="first">Maria</option></select><label for="pair-second">Parella en una altra invitació</label><select id="pair-second" name="secondGuestId"><option value="second">Joan</option></select><button type="submit">Vincula la parella</button></form></div></section>`;
+  await page.route(`/admin/invitations/${id}/fragmento?part=guests`, (route) => route.fulfill({ contentType: 'text/html', body: `<div data-detail-fragments>${section()}</div>` }));
+  await page.route(`/admin/invitations/${id}`, (route) => {
+    if (route.request().method() === 'POST') {
+      const action = /name="action"\r?\n\r?\n([^\r\n]+)/.exec(route.request().postData() ?? '')?.[1];
+      linked = action === 'linkGuests';
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ part: 'guests' }) });
+    }
+    return route.fulfill({ contentType: 'text/html', body: `<html><body><div class="admin-shell--detail"><p data-detail-feedback hidden></p>${section()}</div><script type="module" src="/src/pages/admin/invitations/[id].astro?astro&type=script&index=0&lang.ts"></script></body></html>` });
+  });
+
+  await page.goto(`/admin/invitations/${id}`);
+  await page.evaluate(() => { (window as typeof window & { originalDocument?: Document }).originalDocument = document; });
+  await page.getByRole('button', { name: 'Vincula la parella' }).click();
+  await expect(page.getByRole('link', { name: 'Joan · Invitació de Joan' })).toBeVisible();
+  await page.getByRole('button', { name: 'Desvincula la parella' }).click();
+  await expect(page.getByRole('link', { name: 'Joan · Invitació de Joan' })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as typeof window & { originalDocument?: Document }).originalDocument === document)).toBe(true);
+});
+
 test('settings save refreshes its section without loading a new document', async ({ page }) => {
   let postCount = 0;
   let fragmentCount = 0;
